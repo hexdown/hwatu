@@ -1,0 +1,31 @@
+[project]
+name = "hwatu"
+version = "0.1.0"
+description = "A prototype embedded card store for managing a corpus of Hexdown documents."
+requires-python = ">=3.14"
+authors = [{ name = "philetus", email = "philetus@gmail.com" }]
+dependencies = []
+
+[project.urls]
+Source = "https://github.com/pentabased/tiraz"
+
+[project.optional-dependencies]
+dev = ["pytest>=9.0.3", "ruff>=0.15.13", "ty>=0.0.37"]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["hwatu"]
+
+[tool.ty.environment]
+python = ".venv"
+
+[tool.ty.rules]
+unused-ignore-comment = "warn"
+possibly-missing-import = "error"
+
+[tool.ruff]
+line-length = 80
+target-version = "py314"
