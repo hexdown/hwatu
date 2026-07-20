@@ -8,26 +8,27 @@ Tests accompany each item — the justfile's `test` recipe runs them. The golden
 
 ## Current focus
 
-Phase 1, first item: the sip and glyph module.
+Phase 1: slurp pack/unpack (sips + codec landed 2026-07-20, full validation green).
 
 ## Phase 1 — metastructure codec, TDD against the golden card
 
 **Goal:** encode and parse real sip streams. Success: card 3 round-trips byte-exactly through the codec, and the six mary frances schema cards encode to real hashes — the moment `⟨#passage⟩` resolves.
 
-- [ ] **sips + glyphs module** — sip value constants (octal), the four kind families by leading bits, the glyph table from `spec/glyphs.md` (base-36 petals via `int(c, 36)`; reserved kinds: schema `0o00`, neem `0o74` `·`, graft `0o75`, bloom `0o76`, null `0o77`), glyph ↔ value round-trip
+- [x] **sips + glyphs module** (`hwatu/sips.py`, 2026-07-20) — sip value constants (octal), the four kind families by leading bits, the glyph table from `spec/glyphs.md` (base-36 petals via `int(c, 36)`; reserved kinds: schema `0o00`, neem `0o74` `·`, graft `0o75`, bloom `0o76`, null `0o77`), glyph ↔ value round-trip
   - Acceptance: every value renders and parses; base-36 petals match `int`/`numpy`-free stdlib conversion; family classification by bit test
-- [ ] **metastructure codec** — node tree dataclasses (stem/branch/blossom/null generic nodes) ↔ sip sequences; the five-line parser (null → pad; ≥`0o60` → petals; ≥`0o40` → children-must-be-grafts; else recurse) plus its inverse
+- [x] **metastructure codec** (`hwatu/nodes.py` + `hwatu/codec.py`, 2026-07-20) — node tree dataclasses (stem/branch/blossom generic nodes; frozen, tuple children) ↔ sip sequences; the five-line parser (null → pad; ≥`0o60` → petals; ≥`0o40` → children-must-be-grafts; else recurse) plus its inverse
   - Acceptance: parse(encode(tree)) == tree for hand-built trees; parsing never fails on complete streams
   - Notes: tree-sitter-inspired principle — *parse always returns a tree; validation is separate and per-subtree*; truncation diagnostics report exactly what the count sips still expect
+  - Architecture (2026-07-20): **no hardcoded content-kind classes** — the only Python types are what every parser must know (metastructure + metaschema); kinds are numbers, semantics arrive as a schema-parameterized *view*, authoring goes through schema-resolved builders. New trellises require zero new Python. The tree is the working form; the slurp bytes remain canonical (they carry the hash).
 - [ ] **slurp pack/unpack** — bit-packed 4 sips per 3 bytes; 24-byte increments, 1440-byte max; leading arena / trailing slack beats
   - Acceptance: 141 content sips pack to a 160-sip / 120-byte slurp with 19 trailing beats, per card3-golden
 - [ ] **content hashing** — blake2b-384 over the slurp bytes (64 petals exactly); collision redistribution (arena shift, growth on exhaustion)
   - Acceptance: identical trees hash identically; redistribution changes the hash while preserving the parse
-- [ ] **the golden card test** — construct card 3's tree in code, encode, compare sip-for-sip and glyph-for-glyph against card3-golden.md
-  - Acceptance: exact match on all 141 sips and the glyph stream (`01*-…·6caw-caw…`), modulo the resolved schema bloom
-- [ ] **metaschema + schema cards** — the hardcoded metaschema (trellis root `0o01`, kind `0o02`, kids `0o73`, crowns `0o72`, layout `0o71`; positional values: stems ascend `0o01`, branches descend `0o57`, blossoms descend `0o73`; pads skip seats); schema dataclasses; encode the six mary frances schemas ([mary-frances-schemas.md](../../spec/design/mary-frances-schemas.md)) and compute their real hashes
+- [x] **the golden card test** (`tests/test_codec.py`, 2026-07-20) — construct card 3's tree in code, encode, compare sip-for-sip and glyph-for-glyph against card3-golden.md
+  - Acceptance met: exact match on all 141 sips and the glyph stream (`01*-…·6caw-caw…`), null-hash bloom standing in until the passage schema card is hashed
+- [ ] **metaschema + schema cards** — the hardcoded metaschema (trellis root `0o01`, kind `0o02`, kids `0o73`, crowns `0o72`, layout `0o71`; positional values: stems ascend `0o01`, boughs descend `0o57`, blossoms descend `0o73`; pads skip seats); schema dataclasses; encode the six mary frances schemas ([mary-frances-schemas.md](../../spec/design/mary-frances-schemas.md)) and compute their real hashes
   - Acceptance: `#passage` and friends resolve to real 384-bit blooms; each schema card parses back under the metaschema to its source definition; the passage schema card lands near its ~264-sip estimate
-- [ ] **semantic validator** — walk a face under its schema: kids membership, crown check at the card root, graft petals ∈ the bough's kids, branch-family children are all grafts
+- [ ] **semantic validator** — walk a face under its schema: kids membership, crown check at the card root, graft petals ∈ the bough's kids, bough-family children are all grafts
   - Acceptance: card 3 validates under the passage schema; mutated streams yield per-subtree verdicts, not global failure
 
 ## Phase 2 — store + orchard
@@ -57,4 +58,5 @@ Phase 1, first item: the sip and glyph module.
 ## Open questions
 
 - whether the store's `faces` values should also carry a debug glyph rendering alongside the base64 slurp, or leave that entirely to `hwatu inspect` (lean: inspector only — one source of truth)
+- hardening: `codec.parse` recurses; a pathological-but-valid card of nested single-child stems reaches depth ~960 in 1920 sips, near python's default 1000-frame limit. real cards are shallow; convert to an explicit-stack iterative parse before hostile input matters (cmu was right at the margin)
 - pyproject housekeeping: `Source` URL still points at pentabased/tiraz
