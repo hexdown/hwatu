@@ -59,4 +59,5 @@ Phase 1: slurp pack/unpack (sips + codec landed 2026-07-20, full validation gree
 
 - whether the store's `faces` values should also carry a debug glyph rendering alongside the base64 slurp, or leave that entirely to `hwatu inspect` (lean: inspector only — one source of truth)
 - hardening: `codec.parse` recurses; a pathological-but-valid card of nested single-child stems reaches depth ~960 in 1920 sips, near python's default 1000-frame limit. real cards are shallow; convert to an explicit-stack iterative parse before hostile input matters (cmu was right at the margin)
+- layering (settled 2026-07-20): the codec never interprets petals; `layouts.py` holds the closed set of petal interpretations (phoneme = 0; numeric joins with quant), dispatched by the schema layer per blossom kind. renderer interface: `render(tree, schema) -> markdown`, a rulebook keyed by kind *name*, unknown names degrading gracefully, grafts taking a resolver when branch cards arrive. future question: do render rules ever become *cards*, or stay renderer code keyed by the flat name index?
 - pyproject housekeeping: `Source` URL still points at pentabased/tiraz

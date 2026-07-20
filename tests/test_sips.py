@@ -1,5 +1,6 @@
 """the sip value space: families, glyphs, base-36 petals."""
 
+from hwatu import layouts
 from hwatu import sips as s
 
 
@@ -22,7 +23,7 @@ def test_families_by_leading_bits():
 
 def test_petals_are_base_36():
     for ch in "0123456789abcdefghijklmnopqrstuvwxyz":
-        assert s.word(ch) == (int(ch, 36),)
+        assert layouts.word(ch) == (int(ch, 36),)
 
 
 def test_reserved_glyphs():
@@ -35,16 +36,16 @@ def test_reserved_glyphs():
 
 
 def test_words_with_small_marks():
-    assert s.word("caw-caw") == (12, 10, 32, s.BEAT, 12, 10, 32)
-    assert s.word("haven't") == (17, 10, 31, 14, 23, s.ELIDE, 29)
-    assert s.word("flop*s") == (15, 21, 24, 25, s.POSSESS, 28)
+    assert layouts.word("caw-caw") == (12, 10, 32, s.BEAT, 12, 10, 32)
+    assert layouts.word("haven't") == (17, 10, 31, 14, 23, s.ELIDE, 29)
+    assert layouts.word("flop*s") == (15, 21, 24, 25, s.POSSESS, 28)
 
 
 def test_word_text_round_trip():
     for w in ("caw-caw", "feather", "haven't", "flop*s", "to-day"):
-        assert s.text(s.word(w)) == w
+        assert layouts.text(layouts.word(w)) == w
 
 
 def test_neem_streams_sort_alphabetically():
     words = ["bet", "billy", "feather", "flop", "mary"]
-    assert sorted(words) == sorted(words, key=s.word)
+    assert sorted(words) == sorted(words, key=layouts.word)

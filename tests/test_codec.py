@@ -6,6 +6,7 @@ to 141 exact sips, must round-trip byte-for-byte.
 
 import pytest
 
+from hwatu import layouts
 from hwatu import sips as s
 from hwatu.codec import Truncated, encode, encode_face, parse, parse_face
 from hwatu.nodes import Blossom, Face, Pad, Stem
@@ -17,11 +18,11 @@ PROP = 0o73  # conventional first blossom
 
 
 def neem(w: str) -> Blossom:
-    return Blossom(s.NEEM, s.word(w))
+    return Blossom(s.NEEM, layouts.word(w))
 
 
 def prop(w: str) -> Blossom:
-    return Blossom(PROP, s.word(w))
+    return Blossom(PROP, layouts.word(w))
 
 
 def phrase(*words: Blossom) -> Stem:
