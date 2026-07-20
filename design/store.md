@@ -57,7 +57,7 @@ A **slurp** is a contiguous block of serialized sips with a variable size in **2
 
 Within a slurp:
 
-- **Leading `beat` sips** — collision-resolution arena for content-addressed face hashes (per `spec/metaschema.md`); skipped by the parser at start-of-stream
+- **Leading `beat` sips** — collision-resolution arena for content-addressed face hashes (per the metastructure in `spec/encoding.md`); skipped by the parser at start-of-stream
 - **Content sips** — the actual encoded value
 - **Trailing `beat` sips** — slack within the slurp's chosen size; skipped by the parser at end-of-stream
 
@@ -103,18 +103,18 @@ A **plot** is a logical grouping of cards in the orchard — a unit that gardene
 
 Plots are themselves cards. A **plot-definition card** describes one plot (its name, the trellis(es) cards in this plot conform to, recommended meta, etc.). All plot-definition cards live in the **metaplot** — a reflexive plot whose contents are plot-definition cards, including the card describing the metaplot itself.
 
-Default plots seeded in a fresh orchard:
+Default plots seeded in a fresh orchard (realigned 2026-07-20):
 
 - **`plots`** — the metaplot itself; holds plot-definition cards for every plot including its own
-- **`arbors`** — holds arbor cards (each card's face encoded under the metarbor trellis)
-- **`trellises`** — holds trellis cards (each card's face encoded under the metatrellis trellis)
+- **`schemas`** — holds schema cards (each card's face parsed under the hardcoded metaschema, marked by the null hash); the former `arbors` + `trellises` plots merged when the arbor dissolved into the taproot's trellis
 - **`gardeners`** — holds gardener cards (identity + permissions)
-- **`report`** — holds user documents conforming to the report arbor
-- **`chat`** — holds user documents conforming to a chat arbor (text-message-sized DMs)
+- **`prose`** — holds user documents anchored by the prose taproot trellis
+
+(the `chat` plot — text-message-sized DMs under a message-stream arbor — is deferred until a chat schema exists; not critical path.)
 
 Listing cards in a plot is a query: walk the metaplot's grafts to find the plot-definition card, then list all cards whose back's `plot_ref` matches that plot's card-id. The CLI inspector exposes this as `hwatu list --plot <name>`.
 
-Note: "metaplot" is reserved for plots that are reflexive in this way (a plot of plot-definition cards, including its own). The `gardeners` plot is a regular plot — its cards describe gardeners, not other plots — even though it carries orchard infrastructure. Same goes for `arbors`, `trellises`, and any other infrastructure plot.
+Note: "metaplot" is reserved for plots that are reflexive in this way (a plot of plot-definition cards, including its own). The `gardeners` plot is a regular plot — its cards describe gardeners, not other plots — even though it carries orchard infrastructure. Same goes for `schemas` and any other infrastructure plot.
 
 ## Durability classes
 
@@ -139,7 +139,7 @@ class Back:
     child_card_refs: tuple[CardId, ...]   # graft slots in the face
 ```
 
-Backs serialize to the metaschema record format for storage in the `backs` table. The form of that record is parallel to the bootstrap trellises (metatrellis, metarbor): it is part of what a parser must know in order to interpret an orchard at all, alongside those two. For the first prototype this serialization is provisional — the concrete metaschema encoding has open questions — and we lock it in once the spec firms up.
+The `trellis_ref` and `arbor_ref` fields are stable-id *indexes* under the two-coordinate pattern — the truth is each face's schema bloom and its closure. For the first prototype, backs serialize as provisional yaml (the honest split: faces are real sips from day one, backs wait). The lasting design direction (2026-07-20): **tills and flushes are card-like** — faces parsed under built-in schemas, stored in the same medium as card faces, *without backs* (a delta with a back would loop) — and backs become projections computed from flush history, encoded with ten-petal id blossoms and pad-marked absent fields. That design session comes as soon as schemas and faces parse (plan phase 4); sips all the way down completes there.
 
 ## CLI inspector
 
@@ -151,9 +151,9 @@ table: backs
 key: (1, 0)   # document_id=1, local_id=0
 value (decoded as taproot back):
   card-id: (1, 0)
-  trellis-ref: (0, 4)        # taproot trellis
-  plot-ref: (0, 12)          # report plot
-  arbor-ref: (0, 16)         # report arbor
+  trellis-ref: (0, 14)       # prose taproot schema (stable-id index; the face's bloom is the truth)
+  plot-ref: (0, 12)          # prose plot
+  arbor-ref: (0, 14)         # index to the anchoring schema
   child-card-refs:
     - (1, 1)                 # book branch card
 ```
@@ -161,9 +161,13 @@ value (decoded as taproot back):
 A companion `hwatu list --plot <name>` command lists the cards in a plot by walking the metaplot:
 
 ```
-$ hwatu list --plot arbors
-- (0, 16)  report
-- (0, 17)  chat
+$ hwatu list --plot schemas
+- (0, 14)  taproot
+- (0, 15)  book
+- (0, 16)  chapter
+- (0, 17)  section
+- (0, 18)  passage
+- (0, 19)  banner
 ```
 
 The inspector is the canonical way to read a value's structure; the base64 in the record file remains the source-of-truth representation.

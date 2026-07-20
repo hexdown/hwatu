@@ -1,80 +1,60 @@
 # Implementation Plan
 
-Concrete work items for the hwatu prototype, organized by the phases in [status.md](status.md). Only the active phase is fully fleshed out; later phases stay as stubs until promoted.
+Concrete work items for the hwatu prototype, realigned 2026-07-20 against the settled spec (metastructure, metaschema, glyph table, 60-bit ids). Only the active phase is fully fleshed out; later phases stay as stubs until promoted.
 
 Status markers: `[ ]` todo, `[~]` in progress, `[x]` done, `[!]` blocked.
 
-Tests accompany each item — the justfile's `test` recipe runs them.
-
-Example documents for ingest live in the [hexdown/corpus repo](https://github.com/hexdown/corpus) at `~/work/hexdown/corpus/`, with vendored HTML under `vendor/` and hand-converted markdown under `markdown/`. The first prototype's ingest target is one chapter from `markdown/the-mary-frances-garden-book-by-jane-eayre-fryer/`.
+Tests accompany each item — the justfile's `test` recipe runs them. The golden fixtures live in the spec repo: [ch4-annotation.md](../../spec/design/ch4-annotation.md), [passage-schema.md](../../spec/design/passage-schema.md), [mary-frances-schemas.md](../../spec/design/mary-frances-schemas.md), and above all [card3-golden.md](../../spec/design/card3-golden.md) — the hand-spelled card the encoder must reproduce exactly. The hand is the test for the machine.
 
 ## Current focus
 
-(none yet — first item starts when implementation begins)
+Phase 1, first item: the sip and glyph module.
 
-## Phase 1 — Document model + flat-yaml store + ingest one document
+## Phase 1 — metastructure codec, TDD against the golden card
 
-**Goal:** validate the dataclass shapes and the end-to-end round-trip with placeholder serialization. Skips deltas (cards are written directly). Reaches success when one Mary Frances chapter ingests through the hwatu API, persists, reads back, and re-renders as human-readable text.
+**Goal:** encode and parse real sip streams. Success: card 3 round-trips byte-exactly through the codec, and the six mary frances schema cards encode to real hashes — the moment `⟨#passage⟩` resolves.
 
-### Work items
+- [ ] **sips + glyphs module** — sip value constants (octal), the four kind families by leading bits, the glyph table from `spec/glyphs.md` (base-36 petals via `int(c, 36)`; reserved kinds: schema `0o00`, neem `0o74` `·`, graft `0o75`, bloom `0o76`, null `0o77`), glyph ↔ value round-trip
+  - Acceptance: every value renders and parses; base-36 petals match `int`/`numpy`-free stdlib conversion; family classification by bit test
+- [ ] **metastructure codec** — node tree dataclasses (stem/branch/blossom/null generic nodes) ↔ sip sequences; the five-line parser (null → pad; ≥`0o60` → petals; ≥`0o40` → children-must-be-grafts; else recurse) plus its inverse
+  - Acceptance: parse(encode(tree)) == tree for hand-built trees; parsing never fails on complete streams
+  - Notes: tree-sitter-inspired principle — *parse always returns a tree; validation is separate and per-subtree*; truncation diagnostics report exactly what the count sips still expect
+- [ ] **slurp pack/unpack** — bit-packed 4 sips per 3 bytes; 24-byte increments, 1440-byte max; leading arena / trailing slack beats
+  - Acceptance: 141 content sips pack to a 160-sip / 120-byte slurp with 19 trailing beats, per card3-golden
+- [ ] **content hashing** — blake2b-384 over the slurp bytes (64 petals exactly); collision redistribution (arena shift, growth on exhaustion)
+  - Acceptance: identical trees hash identically; redistribution changes the hash while preserving the parse
+- [ ] **the golden card test** — construct card 3's tree in code, encode, compare sip-for-sip and glyph-for-glyph against card3-golden.md
+  - Acceptance: exact match on all 141 sips and the glyph stream (`01*-…·6caw-caw…`), modulo the resolved schema bloom
+- [ ] **metaschema + schema cards** — the hardcoded metaschema (trellis root `0o01`, kind `0o02`, kids `0o73`, crowns `0o72`, layout `0o71`; positional values: stems ascend `0o01`, branches descend `0o57`, blossoms descend `0o73`; pads skip seats); schema dataclasses; encode the six mary frances schemas ([mary-frances-schemas.md](../../spec/design/mary-frances-schemas.md)) and compute their real hashes
+  - Acceptance: `#passage` and friends resolve to real 384-bit blooms; each schema card parses back under the metaschema to its source definition; the passage schema card lands near its ~264-sip estimate
+- [ ] **semantic validator** — walk a face under its schema: kids membership, crown check at the card root, graft petals ∈ the bough's kids, branch-family children are all grafts
+  - Acceptance: card 3 validates under the passage schema; mutated streams yield per-subtree verdicts, not global failure
 
-- [ ] **ID and hash primitives** — `SequenceId` (monotonic counter), `CardId` (composite: 40-bit document_id + 24-bit local_id, both `SequenceId`s, packed into 64 bits), `StampId` (composite: 40-bit stamp + 24-bit counter, packed into 64 bits — used for both flush-ids and till-ids), `ContentHash` (blake2b digest wrapper)
-  - Acceptance: composite ids round-trip through their packed 64-bit form; `SequenceId`s mint monotonically per allocator
-  - Notes: each table has its own id space — `StampId` is reused across the `flushes` and `tills` tables; the table provides the namespace, the type provides the shape
+## Phase 2 — store + orchard
 
-- [ ] **Document-node dataclasses (passage-trellis subset)** — `Petal`; `Blossom` kinds `neem` and `prop`; `Stem` kinds `span` / `phrase` / `statement` / `question` / `exclamation` / `title` plus passage-level stems (`paragraph`, `list`, `point`, `quote`, `note`)
-  - Acceptance: one Mary Frances paragraph constructs as a tree of these dataclasses in pure Python
-  - Notes: defer `quant` / `enum` / `uniglyph` blossoms and `diagram` / `photo` trellises to later phases; the encapsulating rule is **no bough nodes on leaf cards** — a branch card can graft to a stem, but the body of any stem (and the blossoms and petals it contains) always lives on a leaf card
+(stub; promoted when phase 1 lands)
 
-- [ ] **Bough and Graft dataclasses** — `Bough` is a branch-trellis face root; its children are `Graft` slots, each a single sip whose kind value names the kind of child card at that position (resolved through the back's `child_card_refs` to a `CardId`)
-  - Acceptance: a `book` bough with chapter `Graft` children constructs correctly; `Graft.kind` matches the kind of the grafted leaf card's face root
+- ids: 60-bit / ten-petal `CardId` (36+24) and `StampId` (36+24, hexdown epoch TBD); flat-yaml store per [store.md](store.md) (faces = base64 bit-packed slurps; backs provisionally yaml); plots + metaplot with the realigned defaults (`plots`, `schemas`, `gardeners`, `prose`); bootstrap seeding (six schema cards into `schemas`); `hwatu inspect` (glyph view) and `hwatu list --plot`
 
-- [ ] **Card / face / back dataclasses** — `Card` (face + back), `Face` (wraps a root document node), `Back` (per [store.md](store.md)'s definition — includes `plot_ref` alongside the other structural fields)
-  - Acceptance: a single leaf card constructs with a face hash that matches the hash of its serialized face
+## Phase 3 — chapter 4 ingest + round-trip
 
-- [ ] **Trellis and arbor dataclasses** — `Trellis` (branch | leaf flavor, valid node kinds defined inline, head/body structure), `Arbor` (positions + trellis references); node-kind descriptions are fragments of the trellis they live in (no separate node-kind schema)
-  - Acceptance: the report arbor and its core trellises (taproot, book, chapter, section, passage, banner) constructible as hardcoded Python objects
+(stub)
 
-- [ ] **Plot and plot-definition dataclasses** — `Plot` (logical grouping; cards point to it via `plot_ref`), `PlotDefinition` (a card face describing one plot, lives in the metaplot)
-  - Acceptance: a plot-definition can be constructed for each of the seeded default plots (`plots`, `arbors`, `trellises`, `gardeners`, `report`, `chat`); the metaplot's plot-definition refers to itself as expected
+- hand-transcribed card trees in `tests/data/` (card-by-card constructors from [ch4-annotation.md](../../spec/design/ch4-annotation.md)); ingest through the orchard API; markdown renderer implementing the dialogue mechanics (quoted-run derivation, softening, derived capitalization, `·`/`^` conventions); round-trip diff against `corpus/markdown/.../chapter-4-feather-flop-s-argument.md`, exact modulo the decided normalizations
 
-- [ ] **Placeholder serialization** — `Face` / `Back` / plot definitions / arbors / trellises ↔ bytes via a temporary YAML-in-bytes encoding; values padded with trailing `beat` (0x00) sips to the next 24-byte boundary; face hash computed over the padded byte stream
-  - Acceptance: round-trip of each dataclass kind through bytes is lossless; identical objects produce identical hashes; all stored values are 24-byte aligned
-  - Notes: replaced wholesale in phase 2 with a real sip stream
+## Phase 4 — deltas as card-like faces
 
-- [ ] **Flat-yaml store** — `Store` class with `.read(table, key) -> bytes` and `.write(table, key, bytes) -> None`; four orchard-level tables (`faces`, `backs`, `flushes`, `tills`); record envelope (`hexdown-version` / `table` / `key` / `value`); base64 value encoding; directory layout per [store.md](store.md)
-  - Acceptance: write a record, read it back, decoded bytes match; on-disk yaml is human-readable with the value as a base64 block
+(stub; design session first — wanted as soon as schemas and faces parse)
 
-- [ ] **Orchard wiring** — `Orchard` class holding a `Store`, methods to mint card-ids and stamp-ids, sow new cards into plots, resolve trellis / arbor / plot refs, and walk the metaplot to enumerate plots
-  - Acceptance: cards written through the orchard land in the right tables; card-ids allocated sequentially per document; the metaplot can be walked from a cold start to find every plot
+- direction (2026-07-20): tills and flushes are card-like — faces parsed under built-in schemas, stored in the same medium as card faces, **without backs** (a delta with a back would loop); backs become projections computed from flush history; the back record encoding (ten-petal id blossoms, pad-marked absent fields) lands here — sips all the way down completes
 
-- [ ] **Bootstrap seeding** — code that initializes a fresh orchard with the seeded default plots (`plots` metaplot, `arbors`, `trellises`, `gardeners`, `report`, `chat`), the core trellises (taproot, book, chapter, section, passage, banner), and the report arbor
-  - Acceptance: after seeding, the metaplot lists all default plots; the arbors plot contains the report arbor card; the trellises plot contains the core trellis cards
+## Phase 5 — the markdown transcoder + wider corpus
 
-- [ ] **CLI inspector** — `hwatu inspect <path>` reads a record file and prints a decoded view; dispatches on `table` to pick the right decoder; companion `hwatu list --plot <name>` lists cards in a plot by walking the metaplot
-  - Acceptance: human-readable output for `faces`, `backs`, `flushes`, `tills` records; plot listings show the cards in each default plot
+(stub)
 
-- [ ] **Test-script ingest** — hand-written test script that exercises the hwatu API directly to insert a Mary Frances chapter as a card tree (branch cards in the report arbor, leaf passages with stem/blossom/petal trees); no markdown parsing in hwatu itself
-  - Acceptance: after the script runs, the store contains the expected card count under the `report` plot; the taproot's `child_card_refs` walk into the document's branch hierarchy
+- hexdown-flavored markdown → card trees → store, encoding the interpretation rules learned in the phase-3 hand pass (speech detection, embedded-vs-sentence quoths, normalizations); parser choice open: markdown-it-py (pure python, light) vs tree-sitter-markdown (heavier; hanafuda's design docs already planned tree-sitter for its ingest layer); then ch2 / ch23 / ch47 / front matter, and the corpus-demands features they add (verse, list, lift, note, stress/shout)
 
-- [ ] **Basic text reader** — walks a card tree from a taproot card-id and emits human-readable text (not full markdown); likely shares decoding helpers with the CLI inspector
-  - Acceptance: the rendered text preserves the meaningful content of the test-script-ingested chapter
+## Open questions
 
-### Open questions (phase 1)
-
-- Cold-start bootstrap: which well-known card-id locates the metaplot? Likely `(0, 0)` (document_id=0 reserved per the spec; local_id=0 is always the taproot), but worth pinning down.
-- Whether the bootstrap trellises (metatrellis, metarbor) are stored as cards in the `trellises` plot from day one, or only their grammars exist (hardcoded in the parser) until phase 2
-- Whether the `chat` arbor needs its own definition in phase 1, or if `report` alone is enough for the first prototype
-- How to handle the recursive plot-definition card for the metaplot itself (chicken-and-egg between the metaplot and its own plot-definition card — likely resolved by a small hardcoded bootstrap step)
-
-## Phase 2 — Concrete sip-stream encoding
-
-(deferred until phase 1 lands; populated when promoted)
-
-## Phase 3 — Deltas as source of truth
-
-(deferred)
-
-## Phase 4 — Wider corpus
-
-(deferred)
+- whether the store's `faces` values should also carry a debug glyph rendering alongside the base64 slurp, or leave that entirely to `hwatu inspect` (lean: inspector only — one source of truth)
+- pyproject housekeeping: `Source` URL still points at pentabased/tiraz

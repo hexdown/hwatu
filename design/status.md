@@ -1,6 +1,6 @@
 # Status
 
-Hwatu is in early design development. The first prototype is taking shape across these design docs:
+Hwatu is realigned (2026-07-20) against the settled hexdown spec and ready to implement. The spec gates that blocked the original phasing are all resolved: the metastructure, the metaschema, and the glyph table are settled in [spec/encoding.md](../../spec/encoding.md) and [spec/glyphs.md](../../spec/glyphs.md), and golden fixtures exist before a line of hwatu is written.
 
 - [Vision](vision.md) — role of hwatu within the hexdown ecosystem
 - [Store](store.md) — flat-yaml backing store, table layout, durability classes
@@ -8,29 +8,16 @@ Hwatu is in early design development. The first prototype is taking shape across
 
 ## First prototype scope
 
-The goal of the first hwatu prototype is to validate the spec's document tree model end-to-end against a small canonical corpus before the spec is firmed up enough to implement in Rust.
+Validate the spec end-to-end against the canonical corpus: encode real sip streams, seed real schema cards, ingest chapter 4 of [the Mary Frances Garden Book](https://www.gutenberg.org/cache/epub/53098/pg53098-images.html) as a tree of cards, and render it back as markdown that diffs clean against the source (modulo the decided normalizations).
 
-Concretely, success means:
-
-- Python dataclasses for the spec's structural objects (orchard, plot, card, face, back, arbor, trellis, document-node kinds)
-- A flat-yaml-backed store laid out per [store.md](store.md)
-- A markdown ingestion path that converts a few canonical documents from [the Mary Frances Garden Book](https://www.gutenberg.org/cache/epub/53098/pg53098-images.html) into trees of cards in the store
-- A render path that pulls those documents back out of the store and produces equivalent markdown
-- A CLI for inspecting records and walking the orchard
+The fixtures precede the code: a fully annotated chapter ([ch4-annotation](../../spec/design/ch4-annotation.md)), six worked schemas ([mary-frances-schemas](../../spec/design/mary-frances-schemas.md)), and a hand-spelled golden card ([card3-golden](../../spec/design/card3-golden.md)) the first encoder must reproduce byte-exactly — the *schema as test suite* lineage, with the hand as the machine's first test.
 
 ## Phasing
 
-The prototype lands in stages so each stage produces something testable:
+1. **Metastructure codec** — TDD against the golden card; encode + hash the six schema cards (`⟨#passage⟩` resolves); semantic validator with per-subtree verdicts.
+2. **Store + orchard** — 60-bit ten-petal ids, flat-yaml store (faces as bit-packed slurps; backs provisionally yaml), plots (`plots`, `schemas`, `gardeners`, `prose`), seeding, CLI inspector.
+3. **Chapter 4 round-trip** — hand-transcribed trees in, markdown out, diff against the corpus.
+4. **Deltas as card-like faces** — design session then implementation: tills and flushes as faces under built-in schemas, no backs; back records become computed projections. Sips all the way down completes.
+5. **The markdown transcoder** — hexdown-flavored markdown straight to the store, encoding the interpretation rules learned by hand; then the wider corpus.
 
-1. **Document model + flat-yaml store + ingest one document.** Skips deltas (write cards directly), uses placeholder serialization for values. Validates the dataclass shapes and the round-trip.
-2. **Concrete sip-stream encoding for faces and backs.** Replaces placeholder serialization with the metaschema-record byte layout. Forces the spec's encoding TBDs to resolve.
-3. **Deltas as source of truth.** Adds `flushes` / `tills`; cards become writable only through deltas; backs become projections.
-4. **Wider corpus.** Ingest several Mary Frances documents to stress-test the document model and surface spec gaps.
-
-After the flat-yaml prototype settles, we will evaluate whether to also prototype against a real key-value store in hwatu, or jump straight to the Rust implementation in [hanafuda](https://github.com/hexdown/hanafuda).
-
-## Open work in the spec that gates this prototype
-
-- Concrete metaschema record encoding (`spec/metaschema.md` — gate to phase 2)
-- Concrete sip-glyph mapping (`spec/encoding.md` — gate to phase 2)
-- Full trellis and arbor definitions for the report arbor (`spec/core-arbors.md`)
+After the flat-yaml prototype settles, we evaluate whether to prototype against a real key-value store in hwatu or move to the Rust implementation in [hanafuda](https://github.com/hexdown/hanafuda).
