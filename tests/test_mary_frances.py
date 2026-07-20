@@ -6,11 +6,12 @@ rendered back to the printed page.
 """
 
 import mary_frances
+from test_codec import CARD_3_BODY
+
 from hwatu import sips, slurp
 from hwatu.codec import encode_face, parse_face
 from hwatu.nodes import Blossom, Face, Stem
 from hwatu.render import render
-from test_codec import CARD_3_BODY
 
 
 def test_the_chain_resolves_in_dependency_order():

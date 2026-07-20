@@ -1,7 +1,6 @@
 """the sip value space: families, glyphs, base-36 petals."""
 
-from hwatu import layouts
-from hwatu import sips
+from hwatu import layouts, sips
 
 
 def test_glyph_table_is_a_bijection():

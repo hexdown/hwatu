@@ -6,9 +6,9 @@ first schema card hexdown has ever produced by machine.
 """
 
 import pytest
+from mary_frances import PASSAGE, SECTION
 
-from hwatu import layouts
-from hwatu import sips
+from hwatu import layouts, sips
 from hwatu.schema import (
     Grafts,
     Kids,
@@ -20,8 +20,6 @@ from hwatu.schema import (
     load,
     sips_of,
 )
-
-from mary_frances import PASSAGE, SECTION
 
 
 def test_passage_value_table():

@@ -21,8 +21,7 @@ name position kinds; kids must not.
 from dataclasses import dataclass
 from typing import Union
 
-from hwatu import layouts
-from hwatu import sips
+from hwatu import layouts, sips
 from hwatu.codec import encode_face, parse_face
 from hwatu.nodes import Blossom, Face, Node, Pad, Stem
 

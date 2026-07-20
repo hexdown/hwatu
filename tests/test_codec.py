@@ -6,8 +6,7 @@ to 141 exact sips, must round-trip byte-for-byte.
 
 import pytest
 
-from hwatu import layouts
-from hwatu import sips
+from hwatu import layouts, sips
 from hwatu.codec import Truncated, encode, encode_face, parse, parse_face
 from hwatu.nodes import Blossom, Face, Pad, Stem
 

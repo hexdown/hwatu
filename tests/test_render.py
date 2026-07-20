@@ -5,12 +5,12 @@ tests hold no kind values at all), rendered back to the printed page.
 """
 
 import pytest
+from mary_frances import PASSAGE
 
 from hwatu import sips
 from hwatu.layouts import word
 from hwatu.nodes import Blossom, Stem
 from hwatu.render import render
-from mary_frances import PASSAGE
 
 VALUES = PASSAGE.values()
 
