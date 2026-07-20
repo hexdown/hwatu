@@ -8,7 +8,7 @@ first schema card hexdown has ever produced by machine.
 import pytest
 
 from hwatu import layouts
-from hwatu import sips as s
+from hwatu import sips
 from hwatu.schema import (
     Grafts,
     Kids,
@@ -56,13 +56,13 @@ def test_passage_value_table():
     assert v["phrase"] == 9
     assert v["pivot"] == 10
     assert v["prop"] == 0o73  # conventional first blossom: ^
-    assert v["neem"] == s.NEEM  # reserved kinds are always nameable
+    assert v["neem"] == sips.NEEM  # reserved kinds are always nameable
 
 
 def test_passage_card_opens_like_a_schema_card():
     stream = sips_of(PASSAGE)
-    assert s.glyphs(stream[:4]) == "01*-"
-    assert stream[4:68] == (s.BEAT,) * 64  # the null hash
+    assert sips.glyphs(stream[:4]) == "01*-"
+    assert stream[4:68] == (sips.BEAT,) * 64  # the null hash
 
 
 def test_passage_round_trips_through_its_own_card():
@@ -103,7 +103,7 @@ def test_bough_is_derived_and_wears_omega():
     assert v["banner"] == 0o73  # position kinds take blossom seats
     assert v["passage"] == 0o72
     assert v["section"] == 0o57  # the bough descends from Ω
-    assert s.GLYPHS[v["section"]] == "Ω"
+    assert sips.GLYPHS[v["section"]] == "Ω"
 
 
 def test_bough_schema_round_trips_structurally():

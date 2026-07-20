@@ -6,7 +6,7 @@ tests hold no kind values at all), rendered back to the printed page.
 
 import pytest
 
-from hwatu import sips as s
+from hwatu import sips
 from hwatu.layouts import word
 from hwatu.nodes import Blossom, Stem
 from hwatu.render import render
@@ -20,7 +20,7 @@ def n(kind: str, *kids) -> Stem:
 
 
 def w(text: str) -> Blossom:
-    return Blossom(s.NEEM, word(text))
+    return Blossom(sips.NEEM, word(text))
 
 
 def p(text: str) -> Blossom:

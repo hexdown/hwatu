@@ -21,10 +21,10 @@ name position kinds; kids must not.
 from dataclasses import dataclass
 from typing import Union
 
-from . import layouts
-from . import sips as s
-from .codec import encode_face, parse_face
-from .nodes import Blossom, Face, Node, Pad, Stem
+from hwatu import layouts
+from hwatu import sips
+from hwatu.codec import encode_face, parse_face
+from hwatu.nodes import Blossom, Face, Node, Pad, Stem
 
 # the metaschema's own kind values -- fixed forever, known by heart
 TRELLIS = 0o01
@@ -36,14 +36,14 @@ GRAFTS = 0o70
 
 # reserved kinds are nameable in any kids list
 RESERVED = {
-    "schema": s.SCHEMA,
-    "neem": s.NEEM,
-    "graft": s.GRAFT,
-    "bloom": s.BLOOM,
-    "pad": s.NULL,
+    "schema": sips.SCHEMA,
+    "neem": sips.NEEM,
+    "graft": sips.GRAFT,
+    "bloom": sips.BLOOM,
+    "pad": sips.NULL,
 }
 
-NULL_HASH = (s.BEAT,) * 64
+NULL_HASH = (sips.BEAT,) * 64
 
 
 @dataclass(frozen=True)
@@ -192,7 +192,7 @@ def _next_kind(kinds: tuple[Kind | Skip, ...], i: int) -> Kind | None:
 
 
 def _name(text: str) -> Blossom:
-    return Blossom(s.NEEM, layouts.word(text))
+    return Blossom(sips.NEEM, layouts.word(text))
 
 
 def to_face(
@@ -225,7 +225,7 @@ def to_face(
                 raise ValueError(
                     f"position kind {k.name!r} needs 64 hash petals"
                 )
-            body = Blossom(s.BLOOM, hash_)
+            body = Blossom(sips.BLOOM, hash_)
         decls.append(Stem(KIND, (_name(k.name), body)))
     root = Stem(
         TRELLIS,
@@ -235,8 +235,8 @@ def to_face(
             *decls,
         ),
     )
-    bloom = Blossom(s.BLOOM, NULL_HASH)
-    return Face(0, Stem(s.SCHEMA, (bloom, root)), 0)
+    bloom = Blossom(sips.BLOOM, NULL_HASH)
+    return Face(0, Stem(sips.SCHEMA, (bloom, root)), 0)
 
 
 def from_face(face: Face) -> Schema:
@@ -283,7 +283,7 @@ def _spec_of(node: Node) -> _AnySpec:
         return _RawGrafts(node.petals)
     if node.kind == LAYOUT:
         return Layout(node.petals[0])
-    if node.kind == s.BLOOM:
+    if node.kind == sips.BLOOM:
         return Ref(petals=node.petals)
     raise ValueError(f"unknown spec kind {node.kind:#o}")
 

@@ -16,11 +16,11 @@ scope: the sentence-level constructs of chapter 4. embedded quoths
 increment, before full-chapter ingest.
 """
 
-from . import layouts
-from . import sips as s
-from .nodes import Blossom, Bough, Face, Node, Pad, Stem
-from .schema import Layout as LayoutSpec
-from .schema import Schema
+from hwatu import layouts
+from hwatu import sips
+from hwatu.nodes import Blossom, Bough, Face, Node, Pad, Stem
+from hwatu.schema import Layout as LayoutSpec
+from hwatu.schema import Schema
 
 SENTENCES = {
     "statement": ".",
@@ -62,7 +62,7 @@ def _node(node: Node, schema: Schema, names: dict[int, str]) -> str:
 def _blossom(node: Blossom, schema: Schema, names: dict[int, str]) -> str:
     word = layouts.text(node.petals).replace("'", "’")
     word = word.replace("*", "’")
-    if node.kind == s.NEEM:
+    if node.kind == sips.NEEM:
         return word
     name = names.get(node.kind, "")
     if name == "prop":

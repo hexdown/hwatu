@@ -7,7 +7,7 @@ to 141 exact sips, must round-trip byte-for-byte.
 import pytest
 
 from hwatu import layouts
-from hwatu import sips as s
+from hwatu import sips
 from hwatu.codec import Truncated, encode, encode_face, parse, parse_face
 from hwatu.nodes import Blossom, Face, Pad, Stem
 
@@ -18,7 +18,7 @@ PROP = 0o73  # conventional first blossom
 
 
 def neem(w: str) -> Blossom:
-    return Blossom(s.NEEM, layouts.word(w))
+    return Blossom(sips.NEEM, layouts.word(w))
 
 
 def prop(w: str) -> Blossom:
@@ -80,7 +80,7 @@ def test_golden_body_values():
 
 
 def test_golden_body_glyphs():
-    assert s.glyphs(encode(CARD_3_BODY)) == GOLDEN_BODY_GLYPHS
+    assert sips.glyphs(encode(CARD_3_BODY)) == GOLDEN_BODY_GLYPHS
 
 
 def test_golden_body_round_trip():
@@ -92,20 +92,20 @@ def test_golden_body_round_trip():
 def test_golden_face_is_141_sips():
     # schema bloom held by a placeholder until the passage schema card
     # is encoded and hashed; the null hash stands in (64 beats).
-    bloom = Blossom(s.BLOOM, (s.BEAT,) * 64)
-    face = Face(0, Stem(s.SCHEMA, (bloom, CARD_3_BODY)), 0)
+    bloom = Blossom(sips.BLOOM, (sips.BEAT,) * 64)
+    face = Face(0, Stem(sips.SCHEMA, (bloom, CARD_3_BODY)), 0)
     stream = encode_face(face)
     assert len(stream) == 141
-    assert s.glyphs(stream[:4]) == "01*-"  # the card-opener signature
+    assert sips.glyphs(stream[:4]) == "01*-"  # the card-opener signature
     assert parse_face(stream) == face
 
 
 def test_face_pads_are_identity():
-    bloom = Blossom(s.BLOOM, (s.BEAT,) * 64)
-    face = Face(3, Stem(s.SCHEMA, (bloom, CAW_CAW)), 5)
+    bloom = Blossom(sips.BLOOM, (sips.BEAT,) * 64)
+    face = Face(3, Stem(sips.SCHEMA, (bloom, CAW_CAW)), 5)
     stream = encode_face(face)
-    assert stream[:3] == (s.NULL,) * 3
-    assert stream[-5:] == (s.NULL,) * 5
+    assert stream[:3] == (sips.NULL,) * 3
+    assert stream[-5:] == (sips.NULL,) * 5
     assert parse_face(stream) == face
 
 
@@ -125,4 +125,4 @@ def test_counts_are_1_to_64():
     with pytest.raises(ValueError):
         encode(Stem(1, ()))
     with pytest.raises(ValueError):
-        encode(Blossom(s.BLOOM, (s.BEAT,) * 65))
+        encode(Blossom(sips.BLOOM, (sips.BEAT,) * 65))

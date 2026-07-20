@@ -62,7 +62,7 @@ def glyphs(sips: tuple[int, ...]) -> str:
     return "".join(GLYPHS[s] for s in sips)
 
 
-def sips(text: str) -> tuple[int, ...]:
+def from_glyphs(text: str) -> tuple[int, ...]:
     """read a visible-form string back to sip values."""
     return tuple(VALUES[g] for g in text)
 

@@ -6,8 +6,8 @@ errors say exactly what the count sips still expect. semantic
 validation against schemas is a separate concern, not performed here.
 """
 
-from . import sips as s
-from .nodes import Blossom, Bough, Face, Node, Pad, Stem
+from hwatu import sips
+from hwatu.nodes import Blossom, Bough, Face, Node, Pad, Stem
 
 
 class Truncated(Exception):
@@ -17,7 +17,7 @@ class Truncated(Exception):
 def encode(node: Node) -> tuple[int, ...]:
     """serialize one node (recursively) to sips."""
     if isinstance(node, Pad):
-        return (s.NULL,)
+        return (sips.NULL,)
     if isinstance(node, Blossom):
         _check_count(node.kind, len(node.petals))
         return (node.kind, len(node.petals) - 1, *node.petals)
@@ -35,7 +35,7 @@ def parse(stream: tuple[int, ...], at: int = 0) -> tuple[Node, int]:
     null -> pad; blossom -> petals; branch and stem -> recurse.
     """
     kind = _take(stream, at, "a kind sip")
-    if kind == s.NULL:
+    if kind == sips.NULL:
         return Pad(), at + 1
     count = _take(stream, at + 1, f"a count sip for kind {kind:#o}") + 1
     at += 2
@@ -60,25 +60,27 @@ def parse(stream: tuple[int, ...], at: int = 0) -> tuple[Node, int]:
 
 
 def encode_face(face: Face) -> tuple[int, ...]:
-    return (s.NULL,) * face.lead + encode(face.root) + (s.NULL,) * face.tail
+    return (
+        (sips.NULL,) * face.lead + encode(face.root) + (sips.NULL,) * face.tail
+    )
 
 
 def parse_face(stream: tuple[int, ...]) -> Face:
     """parse a whole face: pads, one schema node, pads, nothing else."""
     lead = 0
-    while lead < len(stream) and stream[lead] == s.NULL:
+    while lead < len(stream) and stream[lead] == sips.NULL:
         lead += 1
     if lead == len(stream):
         raise ValueError("a face needs a schema node; found only pads")
     root, at = parse(stream, lead)
-    if not (isinstance(root, Stem) and root.kind == s.SCHEMA):
+    if not (isinstance(root, Stem) and root.kind == sips.SCHEMA):
         found = stream[lead]  # the kind sip we actually saw
         raise ValueError(
-            f"a face opens with the schema node ({s.SCHEMA:#o}); "
+            f"a face opens with the schema node ({sips.SCHEMA:#o}); "
             f"found kind {found:#o}"
         )
     tail = len(stream) - at
-    if any(v != s.NULL for v in stream[at:]):
+    if any(v != sips.NULL for v in stream[at:]):
         raise ValueError("only pads may follow the schema node")
     return Face(lead, root, tail)
 

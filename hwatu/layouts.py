@@ -7,12 +7,12 @@ they do not define new ones; extension layouts would claim ids from
 the reserve, a spec event rather than configuration.
 """
 
-from . import sips as s
+from hwatu import sips
 
 PHONEME = 0  # neem, prop: base-36 alphanumerics plus the small marks
 # NUMERIC = 1  # quant -- deferred with quant's detailed design
 
-_WORD_MARKS = {"-": s.BEAT, "'": s.ELIDE, "*": s.POSSESS}
+_WORD_MARKS = {"-": sips.BEAT, "'": sips.ELIDE, "*": sips.POSSESS}
 _MARK_CHARS = {v: k for k, v in _WORD_MARKS.items()}
 
 
@@ -38,7 +38,7 @@ def text(petals: tuple[int, ...]) -> str:
         if p in _MARK_CHARS:
             chars.append(_MARK_CHARS[p])
         elif 0 <= p < 36:
-            chars.append(s.GLYPHS[p])
+            chars.append(sips.GLYPHS[p])
         else:
             raise ValueError(f"petal {p:#o} is not a phoneme petal")
     return "".join(chars)
