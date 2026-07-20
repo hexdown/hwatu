@@ -8,7 +8,9 @@ Tests accompany each item — the justfile's `test` recipe runs them. The golden
 
 ## Current focus
 
-Phase 1: slurp pack/unpack (sips + codec landed 2026-07-20, full validation green).
+Phase 1: slurp pack/unpack + hashing (sips, codec, schema module, and the v1 renderer all landed 2026-07-20, full validation green, 31 tests).
+
+The v1 renderer (`hwatu/render.py`) arrived ahead of its phase-3 slot: sentence-level dialogue mechanics complete and verified against the speech-examples golden walks — card 3 renders from raw sips to `“Caw-caw!” Feather Flop cleared his throat. “Caw-caw!”`. Remaining renderer scope for phase 3: embedded quoths, then the full-chapter pass.
 
 ## Phase 1 — metastructure codec, TDD against the golden card
 
@@ -26,8 +28,9 @@ Phase 1: slurp pack/unpack (sips + codec landed 2026-07-20, full validation gree
   - Acceptance: identical trees hash identically; redistribution changes the hash while preserving the parse
 - [x] **the golden card test** (`tests/test_codec.py`, 2026-07-20) — construct card 3's tree in code, encode, compare sip-for-sip and glyph-for-glyph against card3-golden.md
   - Acceptance met: exact match on all 141 sips and the glyph stream (`01*-…·6caw-caw…`), null-hash bloom standing in until the passage schema card is hashed
-- [ ] **metaschema + schema cards** — the hardcoded metaschema (trellis root `0o01`, kind `0o02`, kids `0o73`, crowns `0o72`, layout `0o71`; positional values: stems ascend `0o01`, boughs descend `0o57`, blossoms descend `0o73`; pads skip seats); schema dataclasses; encode the six mary frances schemas ([mary-frances-schemas.md](../../spec/design/mary-frances-schemas.md)) and compute their real hashes
-  - Acceptance: `#passage` and friends resolve to real 384-bit blooms; each schema card parses back under the metaschema to its source definition; the passage schema card lands near its ~264-sip estimate
+- [~] **metaschema + schema cards** (`hwatu/schema.py`, 2026-07-20) — the hardcoded metaschema (trellis root `0o01`, kind `0o02`, kids `0o73`, crowns `0o72`, layout `0o71`; positional values with three-pass assignment; pads skip by look-ahead; bough-ness derived from position-kind kids — two rules this module surfaced and the spec ratified); the passage schema machine-encodes to **253 sips** (estimate was ~264) and round-trips exactly; a section-like bough schema derives onto `Ω`
+  - Remaining: the six mary frances schemas as seed data with real hashes — gated on slurps + hashing
+  - Acceptance: `#passage` and friends resolve to real 384-bit blooms; each schema card parses back under the metaschema to its source definition ✓ (passage, synthetic section)
 - [ ] **semantic validator** — walk a face under its schema: kids membership, crown check at the card root, graft petals ∈ the bough's kids, bough-family children are all grafts
   - Acceptance: card 3 validates under the passage schema; mutated streams yield per-subtree verdicts, not global failure
 
@@ -59,5 +62,5 @@ Phase 1: slurp pack/unpack (sips + codec landed 2026-07-20, full validation gree
 
 - whether the store's `faces` values should also carry a debug glyph rendering alongside the base64 slurp, or leave that entirely to `hwatu inspect` (lean: inspector only — one source of truth)
 - hardening: `codec.parse` recurses; a pathological-but-valid card of nested single-child stems reaches depth ~960 in 1920 sips, near python's default 1000-frame limit. real cards are shallow; convert to an explicit-stack iterative parse before hostile input matters (cmu was right at the margin)
-- layering (settled 2026-07-20): the codec never interprets petals; `layouts.py` holds the closed set of petal interpretations (phoneme = 0; numeric joins with quant), dispatched by the schema layer per blossom kind. renderer interface: `render(tree, schema) -> markdown`, a rulebook keyed by kind *name*, unknown names degrading gracefully, grafts taking a resolver when branch cards arrive. future question: do render rules ever become *cards*, or stay renderer code keyed by the flat name index?
+- layering (settled 2026-07-20): the codec never interprets petals; `layouts.py` holds the closed set of petal interpretations (phoneme = 0; numeric joins with quant), dispatched by the schema layer per blossom kind. renderer interface: `render(tree, schema) -> markdown`, a rulebook keyed by kind *name*, unknown names degrading gracefully, grafts taking a resolver when branch cards arrive. settled 2026-07-20 (philetus): cards are pure structure, up to the names schemas assign; rendering is a separate renderer, implemented in code, taking the schema-tagged tree — render rules do not become cards.
 - pyproject housekeeping: `Source` URL still points at pentabased/tiraz
