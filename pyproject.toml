@@ -7,7 +7,7 @@ authors = [{ name = "philetus", email = "philetus@gmail.com" }]
 dependencies = []
 
 [project.urls]
-Source = "https://github.com/pentabased/tiraz"
+Source = "https://github.com/hexdown/hwatu"
 
 [project.optional-dependencies]
 dev = ["pytest>=9.0.3", "ruff>=0.15.13", "ty>=0.0.37"]

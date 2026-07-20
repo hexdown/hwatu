@@ -1,14 +1,18 @@
 # Implementation Plan
 
-Concrete work items for the hwatu prototype, realigned 2026-07-20 against the settled spec (metastructure, metaschema, glyph table, 60-bit ids). Only the active phase is fully fleshed out; later phases stay as stubs until promoted.
+The hwatu prototype's roadmap and status tracker: scope, concrete work items per phase, and open questions. Realigned 2026-07-20 against the settled spec (metastructure, metaschema, glyph table, 60-bit ids); only the active phase is fully fleshed out — later phases stay as stubs until promoted.
 
 Status markers: `[ ]` todo, `[~]` in progress, `[x]` done, `[!]` blocked.
 
-Tests accompany each item — the justfile's `test` recipe runs them. The golden fixtures live in the spec repo: [ch4-annotation.md](../../spec/design/ch4-annotation.md), [passage-schema.md](../../spec/design/passage-schema.md), [mary-frances-schemas.md](../../spec/design/mary-frances-schemas.md), and above all [card3-golden.md](../../spec/design/card3-golden.md) — the hand-spelled card the encoder must reproduce exactly. The hand is the test for the machine.
+## Prototype scope
+
+Validate the spec end-to-end against the canonical corpus: encode real sip streams, seed real schema cards, ingest chapter 4 of [the Mary Frances Garden Book](https://www.gutenberg.org/cache/epub/53098/pg53098-images.html) as a tree of cards, and render it back as markdown that diffs clean against the source (modulo the decided normalizations). After the flat-yaml prototype settles, we evaluate whether to prototype against a real key-value store in hwatu or move to the Rust implementation in [hanafuda](https://github.com/hexdown/hanafuda).
+
+The fixtures precede the code — the *schema as test suite* lineage, with the hand as the machine's first test. They live in the spec repo: the fully annotated chapter ([ch4-annotation.md](../../spec/design/ch4-annotation.md)), the hand-encoded passage schema ([passage-schema.md](../../spec/design/passage-schema.md)), the six worked schemas ([mary-frances-schemas.md](../../spec/design/mary-frances-schemas.md)), and above all [card3-golden.md](../../spec/design/card3-golden.md) — the hand-spelled card the encoder must reproduce byte-exactly. Tests accompany each work item; the justfile's `test` recipe runs them.
 
 ## Current focus
 
-Phase 1: one item remains — the semantic validator. Everything else landed 2026-07-20 (sips, codec, schema module, seeds with real hashes, slurps, the v1 renderer; 42 tests green). The complete pipeline runs: canonical bytes → sips → tree → rendered markdown, verified end-to-end in test_seeds.
+**Phase 1 is complete** (validator landed 2026-07-20; 56 tests green). The complete pipeline runs: canonical bytes → sips → tree → rendered markdown, verified end-to-end in test_seeds — and faces are now judged against their schemas with per-subtree verdicts. Phase 2 (store + orchard) is next: promote its stub to concrete items in a design session before implementation.
 
 Phase 2's substrate direction (2026-07-20): the Store protocol is the contract — `(table, key) → bytes` — shipped with **two engines**, FileStore (yaml, cat-able) and SqliteStore (stdlib, kv-discipline only: no indices or SQL-isms, because redb is the destination), one parametric test suite against both.
 
@@ -34,8 +38,8 @@ The v1 renderer (`hwatu/render.py`) arrived ahead of its phase-3 slot: sentence-
   - Acceptance met: exact match on all 141 sips and the glyph stream (`01*-…·6caw-caw…`), null-hash bloom standing in until the passage schema card is hashed
 - [x] **metaschema + schema cards** (`hwatu/schema.py` + `tests/mary_frances.py`, 2026-07-20) — the hardcoded metaschema (trellis root `0o01`, kind `0o02`; specs kids `0o73` / crowns `0o72` / layout `0o71` / grafts `0o70`, one shape per family; single-pass positional values; pads skip by look-ahead); the six mary frances seed schemas hash-chained with **real blooms** — `#passage` resolved (pinned in test_seeds), taproot blooming over all four body kinds, every schema a single card (banner 96B … taproot 312B)
   - Acceptance met — and the seeding caught spec bug #3: banner admitted `prop` without declaring it (prop is conventional, not reserved); fixed in seeds and the spec
-- [ ] **semantic validator** — walk a face under its schema: kids membership, crown check at the card root, graft petals ∈ the bough's kids, bough-family children are all grafts
-  - Acceptance: card 3 validates under the passage schema; mutated streams yield per-subtree verdicts, not global failure
+- [x] **semantic validator** (`hwatu/validate.py`, 2026-07-20) — walk a tree under its schema, tree-sitter style: a tuple of per-subtree verdicts (path + rule + report), empty meaning valid; the rules: crown at the card root, kids admission, bough children all grafts, graft petals ∈ the bough's grafted set (position kinds globally), reserved arities (graft exactly 1 petal, bloom exactly 64), the face's bloom-and-root silhouette. family agreement needs no rule — the positional seats make it structural
+  - Acceptance met: card 3 validates under the passage schema; single-sip mutations of the golden stream yield exactly one verdict at the mutated subtree's path, siblings unimpeached
 
 ## Phase 2 — store + orchard
 
@@ -63,7 +67,7 @@ The v1 renderer (`hwatu/render.py`) arrived ahead of its phase-3 slot: sentence-
 
 ## Open questions
 
+- may a pad hold a place under a bough (an absent graft slot preserving positional alignment), or does "children must all be grafts" stay strict? the spec reads both ways — encoding.md's pad rule says a pad in a child position is an intentionally empty slot, but the bough family rule is emphatic. the validator currently rules strict (a pad under a bough draws a `family` verdict). ruled 2026-07-20 (philetus): stay strict until gaps in documents earn their keep
 - whether the store's `faces` values should also carry a debug glyph rendering alongside the base64 slurp, or leave that entirely to `hwatu inspect` (lean: inspector only — one source of truth)
 - hardening: `codec.parse` recurses; a pathological-but-valid card of nested single-child stems reaches depth ~960 in 1920 sips, near python's default 1000-frame limit. real cards are shallow; convert to an explicit-stack iterative parse before hostile input matters (cmu was right at the margin)
 - layering (settled 2026-07-20): the codec never interprets petals; `layouts.py` holds the closed set of petal interpretations (phoneme = 0; numeric joins with quant), dispatched by the schema layer per blossom kind. renderer interface: `render(tree, schema) -> markdown`, a rulebook keyed by kind *name*, unknown names degrading gracefully, grafts taking a resolver when branch cards arrive. settled 2026-07-20 (philetus): cards are pure structure, up to the names schemas assign; rendering is a separate renderer, implemented in code, taking the schema-tagged tree — render rules do not become cards.
-- pyproject housekeeping: `Source` URL still points at pentabased/tiraz
