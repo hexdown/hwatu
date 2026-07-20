@@ -10,13 +10,13 @@ from hwatu import sips
 from hwatu.layouts import word
 from hwatu.nodes import Blossom, Stem
 from hwatu.render import render
-from test_schema import PASSAGE
+from mary_frances import PASSAGE
 
-V = PASSAGE.values()
+VALUES = PASSAGE.values()
 
 
 def n(kind: str, *kids) -> Stem:
-    return Stem(V[kind], kids)
+    return Stem(VALUES[kind], kids)
 
 
 def w(text: str) -> Blossom:
@@ -24,7 +24,7 @@ def w(text: str) -> Blossom:
 
 
 def p(text: str) -> Blossom:
-    return Blossom(V["prop"], word(text))
+    return Blossom(VALUES["prop"], word(text))
 
 
 def ph(*words) -> Stem:

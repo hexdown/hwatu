@@ -21,25 +21,7 @@ from hwatu.schema import (
     sips_of,
 )
 
-SENTENCES = ("statement", "question", "exclamation", "broken")
-
-PASSAGE = Schema(
-    name="passage",
-    crowns=("paragraph",),
-    kinds=(
-        Kind("paragraph", Kids((*SENTENCES, "turn"))),
-        Kind("statement", Kids(("phrase", "pivot", "quoth"))),
-        Kind("question", Kids(("phrase", "pivot", "quoth"))),
-        Kind("exclamation", Kids(("phrase", "pivot", "quoth"))),
-        Kind("broken", Kids(("phrase", "pivot", "quoth"))),
-        Kind("turn", Kids((*SENTENCES, "quoth", "fade"))),
-        Kind("quoth", Kids(("phrase",))),
-        Kind("fade", Kids((*SENTENCES, "phrase"))),
-        Kind("phrase", Kids(("neem", "prop"))),
-        Kind("pivot", Kids(("neem", "prop"))),
-        Kind("prop", Layout(layouts.PHONEME)),
-    ),
-)
+from mary_frances import PASSAGE, SECTION
 
 
 def test_passage_value_table():
@@ -83,19 +65,9 @@ def test_quoth_admitted_at_two_levels():
     assert v["quoth"] == 7
 
 
-# a section-like bough schema: position kinds + the derived bough
+# the real section schema, exercised with placeholder hashes
 HASH_A = tuple(range(64))
 HASH_B = tuple(reversed(range(64)))
-
-SECTION = Schema(
-    name="section",
-    crowns=("section",),
-    kinds=(
-        Kind("banner", Ref("banner")),
-        Kind("passage", Ref("passage")),
-        Kind("section", Grafts(("banner", "passage"))),
-    ),
-)
 
 
 def test_bough_is_derived_and_wears_omega():

@@ -304,3 +304,22 @@ def sips_of(
 def load(stream: tuple[int, ...]) -> Schema:
     """a schema from its sip stream."""
     return from_face(parse_face(stream))
+
+
+def chain(schemas: dict[str, Schema]) -> dict[str, bytes]:
+    """seal a dependency-ordered schema set to canonical slurp bytes.
+
+    every Ref target must precede its referrer; each schema's bloom
+    feeds the refs of those that follow. the generic mechanism behind
+    seeding any orchard -- the schema *data* lives with its corpus,
+    never in this library.
+    """
+    from hwatu import slurp
+
+    blooms: dict[str, tuple[int, ...]] = {}
+    out: dict[str, bytes] = {}
+    for name, schema in schemas.items():
+        data = slurp.seal(sips_of(schema, refs=blooms))
+        blooms[name] = slurp.bloom_of(data)
+        out[name] = data
+    return out

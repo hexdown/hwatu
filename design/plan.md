@@ -8,7 +8,11 @@ Tests accompany each item — the justfile's `test` recipe runs them. The golden
 
 ## Current focus
 
-Phase 1: slurp pack/unpack + hashing (sips, codec, schema module, and the v1 renderer all landed 2026-07-20, full validation green, 31 tests).
+Phase 1: one item remains — the semantic validator. Everything else landed 2026-07-20 (sips, codec, schema module, seeds with real hashes, slurps, the v1 renderer; 42 tests green). The complete pipeline runs: canonical bytes → sips → tree → rendered markdown, verified end-to-end in test_seeds.
+
+Phase 2's substrate direction (2026-07-20): the Store protocol is the contract — `(table, key) → bytes` — shipped with **two engines**, FileStore (yaml, cat-able) and SqliteStore (stdlib, kv-discipline only: no indices or SQL-isms, because redb is the destination), one parametric test suite against both.
+
+The seam ruling (2026-07-20, philetus): **corpus data lives with its corpus, never in the library.** The generic chain-sealing mechanism is `schema.chain()`; the mary frances schema set is a test fixture (`tests/mary_frances.py`) whose destination is data-at-rest — phase 2 seeding writes the schemas as cards, and the sealed bytes export to `corpus/hexdown/` as cross-implementation golden fixtures for hanafuda.
 
 The v1 renderer (`hwatu/render.py`) arrived ahead of its phase-3 slot: sentence-level dialogue mechanics complete and verified against the speech-examples golden walks — card 3 renders from raw sips to `“Caw-caw!” Feather Flop cleared his throat. “Caw-caw!”`. Remaining renderer scope for phase 3: embedded quoths, then the full-chapter pass.
 
@@ -22,15 +26,14 @@ The v1 renderer (`hwatu/render.py`) arrived ahead of its phase-3 slot: sentence-
   - Acceptance: parse(encode(tree)) == tree for hand-built trees; parsing never fails on complete streams
   - Notes: tree-sitter-inspired principle — *parse always returns a tree; validation is separate and per-subtree*; truncation diagnostics report exactly what the count sips still expect
   - Architecture (2026-07-20): **no hardcoded content-kind classes** — the only Python types are what every parser must know (metastructure + metaschema); kinds are numbers, semantics arrive as a schema-parameterized *view*, authoring goes through schema-resolved builders. New trellises require zero new Python. The tree is the working form; the slurp bytes remain canonical (they carry the hash).
-- [ ] **slurp pack/unpack** — bit-packed 4 sips per 3 bytes; 24-byte increments, 1440-byte max; leading arena / trailing slack beats
-  - Acceptance: 141 content sips pack to a 160-sip / 120-byte slurp with 19 trailing beats, per card3-golden
-- [ ] **content hashing** — blake2b-384 over the slurp bytes (64 petals exactly); collision redistribution (arena shift, growth on exhaustion)
-  - Acceptance: identical trees hash identically; redistribution changes the hash while preserving the parse
+- [x] **slurp pack/unpack** (`hwatu/slurp.py`, 2026-07-20) — bit-packed 4 sips per 3 bytes; 24-byte increments, 1440-byte max; leading arena / trailing slack beats
+  - Acceptance met: 141 content sips pack to a 160-sip / 120-byte slurp with 19 trailing beats, per card3-golden
+- [x] **content hashing** (2026-07-20) — blake2b-384 over the slurp bytes (64 petals exactly); collision redistribution (arena shift, growth on exhaustion)
+  - Acceptance met: deterministic blooms; redistribution changes the hash while preserving the content
 - [x] **the golden card test** (`tests/test_codec.py`, 2026-07-20) — construct card 3's tree in code, encode, compare sip-for-sip and glyph-for-glyph against card3-golden.md
   - Acceptance met: exact match on all 141 sips and the glyph stream (`01*-…·6caw-caw…`), null-hash bloom standing in until the passage schema card is hashed
-- [~] **metaschema + schema cards** (`hwatu/schema.py`, 2026-07-20) — the hardcoded metaschema (trellis root `0o01`, kind `0o02`, kids `0o73`, crowns `0o72`, layout `0o71`; positional values with three-pass assignment; pads skip by look-ahead; bough-ness derived from position-kind kids — two rules this module surfaced and the spec ratified); the passage schema machine-encodes to **253 sips** (estimate was ~264) and round-trips exactly; a section-like bough schema derives onto `Ω`
-  - Remaining: the six mary frances schemas as seed data with real hashes — gated on slurps + hashing
-  - Acceptance: `#passage` and friends resolve to real 384-bit blooms; each schema card parses back under the metaschema to its source definition ✓ (passage, synthetic section)
+- [x] **metaschema + schema cards** (`hwatu/schema.py` + `tests/mary_frances.py`, 2026-07-20) — the hardcoded metaschema (trellis root `0o01`, kind `0o02`; specs kids `0o73` / crowns `0o72` / layout `0o71` / grafts `0o70`, one shape per family; single-pass positional values; pads skip by look-ahead); the six mary frances seed schemas hash-chained with **real blooms** — `#passage` resolved (pinned in test_seeds), taproot blooming over all four body kinds, every schema a single card (banner 96B … taproot 312B)
+  - Acceptance met — and the seeding caught spec bug #3: banner admitted `prop` without declaring it (prop is conventional, not reserved); fixed in seeds and the spec
 - [ ] **semantic validator** — walk a face under its schema: kids membership, crown check at the card root, graft petals ∈ the bough's kids, bough-family children are all grafts
   - Acceptance: card 3 validates under the passage schema; mutated streams yield per-subtree verdicts, not global failure
 

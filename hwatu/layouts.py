@@ -10,7 +10,7 @@ the reserve, a spec event rather than configuration.
 from hwatu import sips
 
 PHONEME = 0  # neem, prop: base-36 alphanumerics plus the small marks
-# NUMERIC = 1  # quant -- deferred with quant's detailed design
+NUMERIC = 1  # quant: decimal digits, one petal per digit (d = value d)
 
 _WORD_MARKS = {"-": sips.BEAT, "'": sips.ELIDE, "*": sips.POSSESS}
 _MARK_CHARS = {v: k for k, v in _WORD_MARKS.items()}
@@ -44,5 +44,17 @@ def text(petals: tuple[int, ...]) -> str:
     return "".join(chars)
 
 
+def number(digits_text: str) -> tuple[int, ...]:
+    """numeric-layout petals: one petal per decimal digit."""
+    return tuple(int(ch) for ch in digits_text)
+
+
+def digits(petals: tuple[int, ...]) -> str:
+    """the decimal number a numeric-layout petal sequence spells."""
+    if any(not 0 <= p <= 9 for p in petals):
+        raise ValueError("numeric petals are decimal digits")
+    return "".join(str(p) for p in petals)
+
+
 # the dispatch hook: layout id -> (encode, decode)
-LAYOUTS = {PHONEME: (word, text)}
+LAYOUTS = {PHONEME: (word, text), NUMERIC: (number, digits)}

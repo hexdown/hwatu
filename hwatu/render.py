@@ -16,8 +16,7 @@ scope: the sentence-level constructs of chapter 4. embedded quoths
 increment, before full-chapter ingest.
 """
 
-from hwatu import layouts
-from hwatu import sips
+from hwatu import layouts, sips
 from hwatu.nodes import Blossom, Bough, Face, Node, Pad, Stem
 from hwatu.schema import Layout as LayoutSpec
 from hwatu.schema import Schema
