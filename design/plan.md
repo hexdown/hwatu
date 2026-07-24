@@ -45,7 +45,7 @@ The v1 renderer (`hwatu/render.py`) arrived ahead of its phase-3 slot: sentence-
 
 (stub; promoted when phase 1 lands)
 
-- ids: 60-bit / ten-petal `CardId` (36+24) and `StampId` (36+24, hexdown epoch TBD); flat-yaml store per [store.md](store.md) (faces = base64 bit-packed slurps; backs provisionally yaml); plots + metaplot with the realigned defaults (`plots`, `schemas`, `gardeners`, `prose`); bootstrap seeding (six schema cards into `schemas`); `hwatu inspect` (glyph view) and `hwatu list --plot`
+- ids: 60-bit ten-petal rings — card rings (36+24) and stamp rings (36+24; hexdown epoch = unix epoch); flat-yaml store per [store.md](store.md) (faces = base64 bit-packed slurps; backs provisionally yaml); plots + metaplot with the realigned defaults (`plots`, `schemas`, `gardeners`, `prose`); bootstrap seeding (six schema cards into `schemas`); `hwatu inspect` (glyph view) and `hwatu list --plot`
 
 ## Phase 3 — chapter 4 ingest + round-trip
 
