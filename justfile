@@ -24,7 +24,7 @@ format:
 
 # run static type checking
 typecheck:
-    {{venv_bin}}/ty check hwatu
+    {{venv_bin}}/ty check hwatu tests
 
 # run unit tests
 test:

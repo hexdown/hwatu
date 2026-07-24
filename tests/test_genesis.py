@@ -42,13 +42,19 @@ def test_the_plots_break_ground_in_order():
     names = []
     for _, record in TILLS[1:5]:
         act = record.root.kids[1]
-        names.append(layouts.text(act.kids[0].petals))
+        assert isinstance(act, nodes.Stem)
+        name = act.kids[0]
+        assert isinstance(name, nodes.Blossom)
+        names.append(layouts.text(name.petals))
     assert names == ["plots", "schemas", "gardeners", "prose"]
 
 
 def test_the_stake_ties_prose_to_the_taproot_bloom():
     act = genesis.STAKE.root.kids[1]
+    assert isinstance(act, nodes.Stem)
     lineage, taproot_bloom = act.kids
+    assert isinstance(lineage, nodes.Blossom)
+    assert isinstance(taproot_bloom, nodes.Blossom)
     assert layouts.halves(lineage.petals) == genesis.PROSE_LINEAGE_RING
     assert taproot_bloom.petals == genesis.MF_BLOOMS["taproot"]
 
@@ -57,7 +63,10 @@ def test_the_readme_taproot_validates_under_the_real_arbor():
     verdicts = validate_face(genesis.README_TAPROOT_FACE, mary_frances.TAPROOT)
     assert verdicts == ()
     bough = genesis.README_TAPROOT_FACE.root.kids[1]
-    assert bough.kids[0].petals == (mary_frances.TAPROOT.values()["passage"],)
+    assert isinstance(bough, nodes.Bough)
+    graft = bough.kids[0]
+    assert isinstance(graft, nodes.Blossom)
+    assert graft.petals == (mary_frances.TAPROOT.values()["passage"],)
 
 
 def test_the_readme_passage_validates():
@@ -72,17 +81,25 @@ def test_the_orchard_introduces_itself():
 
 def test_the_sow_tail_matches_the_taproot_grafts():
     act = genesis.SOW.root.kids[1]
+    assert isinstance(act, nodes.Stem)
     taproot_ring, plot_ring, _, child = act.kids
+    assert isinstance(taproot_ring, nodes.Blossom)
+    assert isinstance(plot_ring, nodes.Blossom)
+    assert isinstance(child, nodes.Blossom)
     assert layouts.halves(taproot_ring.petals) == genesis.TAPROOT_RING
     assert layouts.halves(plot_ring.petals) == genesis.PROSE_RING
     assert layouts.halves(child.petals) == genesis.README_RING
     bough = genesis.README_TAPROOT_FACE.root.kids[1]
+    assert isinstance(bough, nodes.Bough)
     assert len(act.kids) - 3 == len(bough.kids)  # one ring per graft
 
 
 def test_the_shoot_supplies_the_forward_referenced_leaf():
     act = genesis.SHOOT.root.kids[1]
+    assert isinstance(act, nodes.Stem)
     card_ring, face_bloom = act.kids  # a leaf carries no child rings
+    assert isinstance(card_ring, nodes.Blossom)
+    assert isinstance(face_bloom, nodes.Blossom)
     assert layouts.halves(card_ring.petals) == genesis.README_RING
     assert face_bloom.petals == genesis.sealed_bloom(
         genesis.README_PASSAGE_FACE
