@@ -9,9 +9,9 @@ init:
     python3 -m venv .venv
     {{venv_bin}}/pip install -e '.[dev]'
 
-# # run hwatu demo
-# run:
-#     {{venv_bin}}/python3 tests/demo.py
+# open the karnak orchard and hear it speak
+run:
+    @{{venv_bin}}/python3 tests/demo.py
 
 # start a python repl inside the virtual environment
 repl:
