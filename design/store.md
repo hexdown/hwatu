@@ -19,7 +19,7 @@ class Store(Protocol):
         """every record, ascending by key bytes."""
 ```
 
-Keys are the spec's byte-aligned projections (rings as big-endian u64, blooms as their 48 digest bytes); values are slurps. There is deliberately no delete — a store only grows, and wiping a prototype store is `rm -r`. Immutability and content-addressing are *not* enforced here: integrity checks (bloom verification, ring-tail-vs-graft-count) belong to the orchard, and a dumb store stays honest by staying dumb.
+Keys are the spec's byte-aligned projections (rings as big-endian u64, blooms as their 48 digest bytes); values are slurps. There is deliberately no delete and no overwrite (ruled 2026-08-01) — a store only grows, and what has grown never changes: put at a held key is a quiet no-op when the bytes are identical (retries and re-seeding are harmless) and an error when they differ. Immutability needs no parsing, so it sits below the seam; *meaning* checks (bloom-against-content, ring-tail-vs-graft-count) still belong to the orchard — the store cannot verify what bytes mean, only refuse to let them change. Wiping a prototype store is `rm -r`.
 
 ## FileStore
 

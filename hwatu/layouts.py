@@ -13,6 +13,8 @@ PHONEME = 0  # neem, prop: base-36 alphanumerics plus the small marks
 NUMERIC = 1  # quant: decimal digits, one petal per digit (d = value d)
 RING = 2  # ring: a 6+4 id in ten raw petals (high 36 bits, low 24)
 
+Ring = tuple[int, int]  # ring halves: (trunk, step) or (stamp, counter)
+
 _WORD_MARKS = {"-": sips.BEAT, "'": sips.ELIDE, "*": sips.POSSESS}
 _MARK_CHARS = {v: k for k, v in _WORD_MARKS.items()}
 

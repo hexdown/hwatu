@@ -17,14 +17,14 @@ at hand, its ring tail is checked against the face's grafts. per
 spec/design/genesis.md and spec/design/delta-schemas.md.
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 
 from hwatu import deltas, layouts, sips, slurp
 from hwatu.codec import parse_face
+from hwatu.layouts import Ring
 from hwatu.nodes import Blossom, Face, Node, Pad, Stem
-
-Ring = tuple[int, int]
+from hwatu.store import Store, key_ring
 
 
 @dataclass(frozen=True)
@@ -48,7 +48,23 @@ class Orchard:
     next_step: dict[int, int] = field(default_factory=dict)
 
 
-def open(
+def open(backing: Store) -> Orchard:
+    """read + parse + replay: the orchard a store holds.
+
+    the faces table travels as sealed bytes; the log records parse
+    here, above the protocol -- the store never parses. per
+    spec/store.md.
+    """
+    faces = tuple(value for _, value in backing.scan("faces"))
+    return replay(_log(backing, "tills"), _log(backing, "flushes"), faces)
+
+
+def _log(backing: Store, table: str) -> Iterator[tuple[Ring, Face]]:
+    for key, value in backing.scan(table):
+        yield key_ring(key), parse_face(slurp.unpack(value))
+
+
+def replay(
     tills: Iterable[tuple[Ring, Face]],
     flushes: Iterable[tuple[Ring, Face]],
     faces: Iterable[bytes] = (),

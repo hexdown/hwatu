@@ -6,9 +6,8 @@ allocator -- then the walk from taproot ring to rendered welcome,
 with the readme's schema resolved from the seeded faces by bloom.
 """
 
-import pytest
-
 import genesis
+import pytest
 from genesis import FLUSHES, TILLS
 
 from hwatu import nodes, orchard, slurp
@@ -16,7 +15,7 @@ from hwatu.codec import parse_face
 from hwatu.render import render_face
 from hwatu.schema import load
 
-KARNAK = orchard.open(TILLS, FLUSHES, genesis.faces().values())
+KARNAK = orchard.replay(TILLS, FLUSHES, genesis.faces().values())
 
 
 def test_the_orchard_is_karnak_with_four_plots():
@@ -54,7 +53,7 @@ def test_unknown_acts_skip_gracefully():
         nodes.Stem(0o20, (genesis.neem("mystery"),)),
     )
     tills = (*TILLS, ((genesis.FOUNDED, 8), mystery))
-    opened = orchard.open(tills, FLUSHES, genesis.faces().values())
+    opened = orchard.replay(tills, FLUSHES, genesis.faces().values())
     assert opened.name == "karnak"
     assert opened.plots == KARNAK.plots
 
@@ -69,7 +68,7 @@ def test_a_later_shoot_replaces_the_face():
         ),
     )
     flushes = (*FLUSHES, ((genesis.FOUNDED, 8), reshoot))
-    opened = orchard.open(TILLS, flushes, genesis.faces().values())
+    opened = orchard.replay(TILLS, flushes, genesis.faces().values())
     assert opened.backs[(0, 6)].bloom == fresh
 
 
@@ -89,7 +88,7 @@ def test_the_ring_tail_is_checked_against_the_face():
     )
     flushes = (*FLUSHES, ((genesis.FOUNDED, 8), lying))
     with pytest.raises(ValueError):
-        orchard.open(TILLS, flushes, genesis.faces().values())
+        orchard.replay(TILLS, flushes, genesis.faces().values())
 
 
 def test_the_orchard_opens_and_speaks():

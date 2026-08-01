@@ -13,6 +13,10 @@ init:
 run:
     @{{venv_bin}}/python3 tests/demo.py
 
+# seed the karnak genesis into a filestore at the given path
+seed path:
+    @{{venv_bin}}/python3 tests/seed.py {{path}}
+
 # start a python repl inside the virtual environment
 repl:
     {{venv_bin}}/python3

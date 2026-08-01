@@ -10,9 +10,10 @@ per spec/design/genesis.md and spec/design/delta-schemas.md.
 
 import mary_frances
 
-from hwatu import deltas, layouts, sips, slurp
+from hwatu import deltas, layouts, sips, slurp, store
 from hwatu.codec import encode_face
 from hwatu.nodes import Blossom, Bough, Face, Stem
+from hwatu.store import Store
 
 # the founding second: the moment the karnak orchard was hand-coded
 # into being (2026-07-24 06:30:37 utc)
@@ -215,3 +216,18 @@ def faces() -> dict[str, bytes]:
         "readme-taproot": slurp.seal(encode_face(README_TAPROOT_FACE)),
         "readme-passage": slurp.seal(encode_face(README_PASSAGE_FACE)),
     }
+
+
+def seed(backing: Store) -> None:
+    """write the genesis through a store: ten faces into the faces
+    table, eight records sealed into the logs. byte-reproducible --
+    the founding second is fixed and the blooms are deterministic,
+    so the golden store is nothing but a fresh seed, verbatim."""
+    for data in faces().values():
+        backing.put("faces", store.bloom_key(slurp.bloom_of(data)), data)
+    for stamp_ring, record in TILLS:
+        sealed = slurp.seal(encode_face(record))
+        backing.put("tills", store.ring_key(stamp_ring), sealed)
+    for stamp_ring, record in FLUSHES:
+        sealed = slurp.seal(encode_face(record))
+        backing.put("flushes", store.ring_key(stamp_ring), sealed)

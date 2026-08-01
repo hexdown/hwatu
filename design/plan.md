@@ -47,14 +47,14 @@ The v1 renderer (`hwatu/render.py`) arrived ahead of its phase-3 slot: sentence-
 
 **Goal:** karnak on disk. Success: both engines seed the genesis, reopen it by replay, and `just run` prints the readme from a store on disk; the golden store in the corpus repo matches seeding byte for byte.
 
-- [ ] **projections + spelling** — ring ↔ big-endian u64 bytes, bloom petals ↔ 48 digest bytes, octal key spelling (two digits per sip; rings twelve digits, hyphen, eight; blooms 128 unbroken) per spec data-model.md
-  - Acceptance: round-trips; byte order equals ring order; spelled names sort identically to key bytes
-- [ ] **Store protocol + engines** (`hwatu/store.py`) — `get` / `put` / `scan` (ascending key bytes) over the hardcoded tables (`faces`, `tills`, `flushes`); no delete. FileStore: directory per table, octal filenames, raw slurp bytes. SqliteStore: stdlib `sqlite3`, one `(key BLOB PRIMARY KEY, value BLOB)` table per orchard table, kv discipline (no indices, no SQL-isms — redb is the destination)
-  - Acceptance: one parametric suite green on both engines; engine equivalence (same puts → byte-identical scans)
-- [ ] **seeding + the golden store** — write the karnak genesis through the store api; export the FileStore form as `corpus/hexdown/karnak/` (the seam ruling's destination grown from schema bytes to the whole constellation)
-  - Acceptance: `seed(store)` reproduces the golden store byte-exactly (fixed founding second, deterministic blooms); hanafuda's acceptance test becomes "open the directory, replay, print the readme"
-- [ ] **open(store)** (`hwatu/orchard.py` growth) — read + parse + replay: scan the logs, resolve record schemas from `faces` by bloom, distill the projections; `just run` opens the store on disk
-  - Acceptance: projections from `open(store)` equal test_replay's in-memory projections; the readme renders
+- [x] **projections + spelling** (`hwatu/store.py`, 2026-08-01) — ring ↔ big-endian u64 bytes, bloom petals ↔ 48 digest bytes, octal key spelling (two digits per sip; rings twelve digits, hyphen, eight; blooms 128 unbroken) per spec data-model.md
+  - Acceptance met: round-trips; byte order equals ring order; spelled names sort identically to key bytes; a bloom's byte projection proven equal to its blake2b-384 digest
+- [x] **Store protocol + engines** (`hwatu/store.py` + `tests/test_store.py`, 2026-08-01) — `get` / `put` / `scan` (ascending key bytes) over the hardcoded tables (`faces`, `tills`, `flushes`); no delete, no overwrite (put: an identical re-put is a no-op, differing bytes error — immutability enforced below the seam, ruled 2026-08-01). FileStore: directory per table, octal filenames, raw slurp bytes. SqliteStore: stdlib `sqlite3`, one `(key BLOB PRIMARY KEY, value BLOB) WITHOUT ROWID` table per orchard table, autocommit, kv discipline (no indices, no SQL-isms — redb is the destination)
+  - Acceptance met: one parametric suite green on both engines; engine equivalence (same puts → byte-identical scans); the filestore's bytes honest under `cat`
+- [~] **seeding + the golden store** (`tests/genesis.py` seed + `tests/seed.py`, 2026-08-01) — `genesis.seed(backing)` writes the karnak genesis through any store; `just seed <path>` grows a filestore anywhere; byte-reproducibility pinned in test_open
+  - Remaining: run `just seed ../corpus/hexdown/karnak` and commit the corpus — the golden-store regression (`test_the_golden_store_is_a_fresh_seed_verbatim`, currently the one skip) activates the moment the directory exists
+- [x] **open(store)** (`hwatu/orchard.py`, 2026-08-01) — `orchard.open(backing)` = scan + parse + replay, with the in-memory entry renamed `replay` (open reads a store; replay folds a log — the spec's own verbs); `just run` seeds a temp filestore, opens it, and prints the readme with every face resolved through the store
+  - Acceptance met: `open(backing)` equals the in-memory replay on both engines; the readme renders through the store
 - [ ] **CLI** — `hwatu inspect <table> <key>` (octal, glyph, and schema-aware decoded views — the one place glyph strings render) and `hwatu list [--plot <name>]` (documents by plot, from projections)
   - Acceptance: inspect renders a record from each table; list shows karnak's plots and the readme document
 
