@@ -37,7 +37,7 @@ FLUSH = Schema(
     kinds=(
         # sow: taproot ring, plot ring, face bloom
         Kind("sow", Kids(("ring", "bloom"))),
-        # shoot: card ring, face bloom, child ring per graft in face order
+        # shoot: stead ring, face bloom, child ring per graft in face order
         Kind("shoot", Kids(("ring", "bloom"))),
         Kind("ring", Layout(layouts.RING)),
     ),

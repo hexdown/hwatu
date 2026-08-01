@@ -111,7 +111,7 @@ def _flush(
         _plant(orchard, taproot, bloom, kids, seeded)
     elif name == "shoot":
         if len(act.kids) < 2:
-            raise ValueError("a shoot is card ring, bloom")
+            raise ValueError("a shoot is stead ring, bloom")
         ring = _ring(act.kids[0])
         bloom = _bloom(act.kids[1])
         kids = tuple(_ring(kid) for kid in act.kids[2:])

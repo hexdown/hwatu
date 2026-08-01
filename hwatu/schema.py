@@ -26,7 +26,7 @@ from hwatu.codec import encode_face, parse_face
 from hwatu.nodes import Blossom, Face, Node, Pad, Stem
 
 # the metaschema's own kind values -- fixed forever, known by heart
-TRELLIS = 0o01
+HABIT = 0o01
 KIND = 0o02
 KIDS = 0o73
 CROWNS = 0o72
@@ -197,7 +197,7 @@ def _name(text: str) -> Blossom:
 def to_face(
     schema: Schema, refs: dict[str, tuple[int, ...]] | None = None
 ) -> Face:
-    """the schema as a card face: null-hash schema node, trellis root.
+    """the schema as a card face: null-hash schema node, habit root.
 
     `refs` maps position-kind targets to their 64 hash petals; leaf
     schemas need none.
@@ -227,7 +227,7 @@ def to_face(
             body = Blossom(sips.BLOOM, hash_)
         decls.append(Stem(KIND, (_name(k.name), body)))
     root = Stem(
-        TRELLIS,
+        HABIT,
         (
             _name(schema.name),
             Blossom(CROWNS, tuple(values[n] for n in schema.crowns)),
@@ -243,8 +243,8 @@ def from_face(face: Face) -> Schema:
     bloom, root = face.root.kids
     if not (isinstance(bloom, Blossom) and bloom.petals == NULL_HASH):
         raise ValueError("schema cards carry the null hash")
-    if not (isinstance(root, Stem) and root.kind == TRELLIS):
-        raise ValueError("a schema card's root is a trellis")
+    if not (isinstance(root, Stem) and root.kind == HABIT):
+        raise ValueError("a schema card's root is a habit")
     name_node, crowns_node, *decls = root.kids
     kinds: list[Kind | Skip] = []
     for d in decls:

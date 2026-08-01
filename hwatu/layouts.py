@@ -60,9 +60,9 @@ def digits(petals: tuple[int, ...]) -> str:
 def ring(high: int, low: int) -> tuple[int, ...]:
     """ring-layout petals: a 6+4 id as six high petals, four low.
 
-    the high half is a document-id or a stamp (36 bits), the low half
-    a local-id or a counter (24 bits) -- card rings and stamp rings
-    share the shape.
+    the high half is a trunk or a stamp (36 bits), the low half a
+    step or a counter (24 bits) -- stead rings and stamp rings share
+    the shape.
     """
     if not 0 <= high < 1 << 36:
         raise ValueError(f"a ring's high half holds 36 bits; got {high}")

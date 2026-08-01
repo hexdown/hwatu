@@ -1,188 +1,81 @@
 # Store
 
-Hwatu's first prototype backs its card store with a directory of flat YAML files. The layout is shaped by two commitments:
+Hwatu's store implements the level-0 half of the spec's two-level architecture ([spec store.md](../../spec/store.md)): three tables of bytes under sorted byte keys, with every hexdown semantic living above it in the orchard api. Two commitments shape everything here:
 
-- **Everything is a card.** Arbors, trellises, plot definitions, and gardeners are stored as cards, not as bespoke records. Only four record kinds live below the card layer.
-- **Storage substrate is dumb.** The yaml files hold opaque base64-encoded byte values; the storage layer never parses hexdown semantics. The same byte payloads will land directly in a key-value substrate when the prototype graduates.
+- **Everything durable is faces plus deltas.** Three tables — `faces`, `tills`, `flushes`. Backs, the plot table, the schema registry, and the id allocator are replay projections and never touch disk.
+- **The storage substrate is dumb.** The store never parses; the orchard never touches a disk except through the protocol. The same bytes land the same way in every engine, so migration is a substrate swap, not a translation.
 
-## Why flat YAML first
+## The protocol
 
-A real key-value store (redb, LMDB) is the eventual destination. But for the first prototype we want:
-
-- **Fast iteration** — change record formats without schema migrations
-- **Human inspectability** — read a record by `cat`-ing a file
-- **No external dependencies** — `./store/` is self-contained and trivial to wipe and recreate
-- **Clean migration path** — the layout already thinks in `(table, key) → bytes`, so swapping the substrate is a substrate change, not a shape change
-
-## On-disk layout
-
-```
-./store/
-├── faces/
-│   └── {content-hash}.yaml
-├── backs/
-│   └── {card-id}.yaml
-├── flushes/
-│   └── {stamp-id}.yaml
-└── tills/
-    └── {stamp-id}.yaml
-```
-
-Four directories — one per orchard-level table. Each `{table}/{key}.yaml` is one record; the filename carries the key, the directory implies the table.
-
-Everything else — arbors, trellises, plot definitions, gardeners, user documents — lives inside these four tables as cards (face + back pairs). To list the arbors in the orchard, you walk the metaplot's grafts and resolve each to a card in `backs/`.
-
-## Record envelope
-
-```yaml
-hexdown-version: 0.1
-table: faces
-key: <content-hash>
-value: |
-  <base64-encoded bytes>
-```
-
-Self-describing — a record file pulled out of context still names its table and key. The `hexdown-version` field lets the prototype evolve without breaking older fixtures.
-
-## Value encoding
-
-`value` is the base64 encoding of the raw bytes that will eventually live in the key-value store. Those bytes are a packed sip stream (6-bit sips aligned to system word boundaries) organized as a **slurp**.
-
-### Slurps
-
-A **slurp** is a contiguous block of serialized sips with a variable size in **24-byte increments** (32 sips per increment, 3 × 64-bit words / 6 × 32-bit words). Each stored value occupies exactly one slurp.
-
-- **Minimum slurp size: 24 bytes** (one increment, 32 sips)
-- **Maximum slurp size: 1440 bytes** (60 increments, 1920 sips) — chosen so a slurp fits in a typical network packet payload after IPv6 + TCP header overhead (60 bytes off a 1500-byte Ethernet MTU)
-
-Within a slurp:
-
-- **Leading `beat` sips** — collision-resolution arena for content-addressed face hashes (per the metastructure in `spec/encoding.md`); skipped by the parser at start-of-stream
-- **Content sips** — the actual encoded value
-- **Trailing `beat` sips** — slack within the slurp's chosen size; skipped by the parser at end-of-stream
-
-The same `beat` sip (value 0x00, rendered as `-`) serves both roles; the parser distinguishes them by position. The hash is computed over the entire slurp byte stream, so changing the leading-vs-trailing null split changes the hash.
-
-### Collision resolution via slurp growth
-
-The slurp size *is* the collision-resolution budget. When a content hash collides with an existing value:
-
-1. **Redistribute existing nulls** — push one `beat` from the trailing slack to the leading arena, shifting the content one sip rightward within the slurp. The hash changes (because byte positions of the content shift); the slurp size stays the same.
-2. **Grow on exhaustion** — if all trailing slack has already been moved forward and the collision still stands, grow the slurp by one 24-byte increment. The new increment lands as trailing beats, opening 32 fresh sips of arena to redistribute.
-3. **Repeat** until the collision resolves or the slurp hits its maximum size.
-
-### Records larger than one slurp
-
-A value whose content cannot be encoded into a single slurp at the maximum size (1920 sips total — content plus collision arena) is **rejected** at the storage layer. The arbor / trellis structure is responsible for fragmenting oversized content into multiple cards further up the tree.
-
-This is the strict default and matches the spec's *modest data model* commitment: fragmentation responsibility belongs to the participant shaping the document, not to the storage layer quietly chunking values. Open to revisiting if importing real corpora regularly produces oversized cards.
-
-### Why opaque base64
-
-Keeping `value` opaque has two virtues:
-
-- The store doesn't leak hexdown structure into the storage format
-- Migration to a key-value store is a substrate change, not a representation change — the same bytes go in the same way
-
-The trade-off is that base64 isn't human-readable. The mitigation is a CLI inspector (see below).
-
-## Orchard-level tables
-
-| Table | Key | Holds |
-|:--|:--|:--|
-| `faces` | content-hash | content-addressed face sip stream |
-| `backs` | card-id | materialized back record (cache; rebuildable from flushes) |
-| `flushes` | stamp-id | append-only content delta |
-| `tills` | stamp-id | append-only structural delta |
-
-Note that `flushes` and `tills` share the same key shape (`StampId`) but live in different tables — the table provides the namespace, so a stamp-id of `(stamp=X, counter=Y)` in `flushes` is a different record from the same stamp-id in `tills`. The general principle: **each table has its own id space, even when id shapes are shared across tables.**
-
-## Plots and the metaplot
-
-A **plot** is a logical grouping of cards in the orchard — a unit that gardener permissions attach to and that organizes cards by intent. Each card's back carries a `plot_ref` indicating which plot it belongs to.
-
-Plots are themselves cards. A **plot-definition card** describes one plot (its name, the trellis(es) cards in this plot conform to, recommended meta, etc.). All plot-definition cards live in the **metaplot** — a reflexive plot whose contents are plot-definition cards, including the card describing the metaplot itself.
-
-Default plots seeded in a fresh orchard (realigned 2026-07-20):
-
-- **`plots`** — the metaplot itself; holds plot-definition cards for every plot including its own
-- **`schemas`** — holds schema cards (each card's face parsed under the hardcoded metaschema, marked by the null hash); the former `arbors` + `trellises` plots merged when the arbor dissolved into the taproot's trellis
-- **`gardeners`** — holds gardener cards (identity + permissions)
-- **`prose`** — holds user documents anchored by the prose taproot trellis
-
-(the `chat` plot — text-message-sized DMs under a message-stream arbor — is deferred until a chat schema exists; not critical path.)
-
-Listing cards in a plot is a query: walk the metaplot's grafts to find the plot-definition card, then list all cards whose back's `plot_ref` matches that plot's card-id. The CLI inspector exposes this as `hwatu list --plot <name>`.
-
-Note: "metaplot" is reserved for plots that are reflexive in this way (a plot of plot-definition cards, including its own). The `gardeners` plot is a regular plot — its cards describe gardeners, not other plots — even though it carries orchard infrastructure. Same goes for `schemas` and any other infrastructure plot.
-
-## Durability classes
-
-The spec's [vision](../../spec/vision.md) commits to deltas as the source of truth and other state as ephemeral projections. The store layout reflects three durability classes:
-
-- **Content-addressed (immutable)** — `faces`. Once written, never modified. Keyed by hash; deduplicated automatically across cards that share content.
-- **Append-only (immutable)** — `flushes`, `tills`. Each delta is written once and never modified. The full history of every change is reachable by walking these tables.
-- **Materialized projections (cache)** — `backs`. Current-state lookups maintained for fast access, but always regenerable from the flush history. Includes the backs of cards that themselves carry orchard infrastructure (arbor cards, trellis cards, plot-definition cards, gardener cards).
-
-## Backs as in-memory dataclasses
-
-Within hwatu, backs are Python dataclasses with the spec's structural fields:
+In the working idiom:
 
 ```python
-@dataclass
-class Back:
-    card_id: CardId                       # (document_id, local_id)
-    trellis_ref: CardId                   # which trellis governs the face
-    plot_ref: CardId                      # which plot the card belongs to
-    face_hash: ContentHash                # content hash of the face sip stream
-    arbor_ref: CardId | None              # taproot cards only
-    child_card_refs: tuple[CardId, ...]   # graft slots in the face
+TABLES = ("faces", "tills", "flushes")
+
+class Store(Protocol):
+    def get(self, table: str, key: bytes) -> bytes | None: ...
+    def put(self, table: str, key: bytes, value: bytes) -> None: ...
+    def scan(self, table: str) -> Iterator[tuple[bytes, bytes]]:
+        """every record, ascending by key bytes."""
 ```
 
-The `trellis_ref` and `arbor_ref` fields are stable-id *indexes* under the two-coordinate pattern — the truth is each face's schema bloom and its closure. For the first prototype, backs serialize as provisional yaml (the honest split: faces are real sips from day one, backs wait). The lasting design direction (2026-07-20): **tills and flushes are card-like** — faces parsed under built-in schemas, stored in the same medium as card faces, *without backs* (a delta with a back would loop) — and backs become projections computed from flush history, encoded with ten-petal id blossoms and pad-marked absent fields. That design session comes as soon as schemas and faces parse (plan phase 4); sips all the way down completes there.
+Keys are the spec's byte-aligned projections (rings as big-endian u64, blooms as their 48 digest bytes); values are slurps. There is deliberately no delete — a store only grows, and wiping a prototype store is `rm -r`. Immutability and content-addressing are *not* enforced here: integrity checks (bloom verification, ring-tail-vs-graft-count) belong to the orchard, and a dumb store stays honest by staying dumb.
 
-## CLI inspector
+## FileStore
 
-A small `hwatu inspect` command reads a record and prints a human-readable decoding of the value:
-
-```
-$ hwatu inspect store/backs/000000000001_000000.yaml
-table: backs
-key: (1, 0)   # document_id=1, local_id=0
-value (decoded as taproot back):
-  card-id: (1, 0)
-  trellis-ref: (0, 14)       # prose taproot schema (stable-id index; the face's bloom is the truth)
-  plot-ref: (0, 12)          # prose plot
-  arbor-ref: (0, 14)         # index to the anchoring schema
-  child-card-refs:
-    - (1, 1)                 # book branch card
-```
-
-A companion `hwatu list --plot <name>` command lists the cards in a plot by walking the metaplot:
+A directory per table; a file per record; the filename is the key's octal spelling (two digits per sip); the contents are the raw slurp bytes, identical to what any kv engine holds.
 
 ```
-$ hwatu list --plot schemas
-- (0, 14)  taproot
-- (0, 15)  book
-- (0, 16)  chapter
-- (0, 17)  section
-- (0, 18)  passage
-- (0, 19)  banner
+store/
+├── faces/
+│   └── <128 octal digits>       # bloom-keyed face slurps
+├── tills/
+│   ├── 015230603215-00000000    # found: karnak's founding second, counter 0
+│   └── ...
+└── flushes/
+    └── 015230603215-00000006    # sow of the readme taproot
 ```
 
-The inspector is the canonical way to read a value's structure; the base64 in the record file remains the source-of-truth representation.
+Octal filenames are case-free (safe on case-insensitive filesystems), shell-safe, and sort identically to the key bytes — `ls tills/` prints the log in order. `cat` shows honest binary; the human view is `hwatu inspect`, the one place glyph strings render.
+
+## SqliteStore
+
+A single file via stdlib `sqlite3`, one table per orchard table:
+
+```sql
+CREATE TABLE {table} (key BLOB PRIMARY KEY, value BLOB) WITHOUT ROWID;
+```
+
+**Kv discipline**: primary-key blobs, insert / point-select / ordered-scan, and nothing else — no indices, no SQL-isms — because redb is the destination and this engine exists to practice that style with zero dependencies. The b-tree's native key order is the scan order, exactly as redb's will be.
+
+## Parametric tests
+
+One suite runs against both engines: protocol conformance (get/put/scan round-trips, scan order, absence) and engine equivalence (the same puts produce byte-identical scans). Equivalence is the proof that no semantics leaked below the seam.
+
+## Seeding and the golden store
+
+Seeding is writing the genesis log ([spec deltas.md](../../spec/deltas.md)) through the store: the karnak constellation — eight records, counters 0–7 at the founding second 1784874637, and ten faces (the six mary frances schemas, till and flush, the readme's taproot and passage; ~1.7 KB in all).
+
+Seeding is byte-reproducible — fixed founding second, deterministic blooms — so the FileStore form of a fresh seed is checked into the corpus repo as **the golden store**, `corpus/hexdown/karnak/`:
+
+- hwatu's regression: `seed(store)` equals the golden store byte for byte
+- hanafuda's acceptance: open the directory, replay, print the readme
+- the seam ruling's destination grown to full size: the sealed schema slurps land in the corpus as cross-implementation fixtures, now with the whole orchard around them
+
+## Opening
+
+`orchard.open(store)` = read + parse + replay: scan `tills` and `flushes`, resolve each record's schema from `faces` by bloom (dynamic loading, no hardcoded constants), merge by stamp ring, dispatch by kind name, distill the projections. `just run` opens the store on disk and prints the readme.
+
+## CLI
+
+- `hwatu inspect <table> <key>` — one record, decoded: octal sips, the glyph stream, and the schema-aware view (rings as `(document, step)` pairs, names as words). The inspector is the canonical human rendering; the stored bytes are the truth.
+- `hwatu list [--plot <name>]` — plots and their documents, from the projections of an opened store.
 
 ## Migration to a key-value substrate
 
-When the prototype is ready to graduate, the substrate swap is:
-
-1. Pick a key-value store (redb, LMDB, ...)
-2. Open one named sub-database per orchard-level table (faces, backs, flushes, tills)
-3. For each table, the key becomes the kv key and the value's base64-decoded bytes become the kv value
-
-The `hexdown-version` and table/key envelope fields drop away — the table is implied by the sub-database and the key is implied by the kv key. Plot organization stays the same — it's a card-level concept, not a storage-layer one.
+Open one sub-database per table; the key bytes are the kv keys; the slurp bytes are the kv values. Nothing else — no envelope to drop, no encoding to translate. Plot organization survives untouched: it lives in the log, not the storage layer.
 
 ## Open questions
 
-- Whether the hwatu API operates on real (provisional) sip-encoded bytes from phase 1, or on placeholder bytes (e.g., yaml-as-bytes) with real sip encoding deferred to phase 2
-- Whether to reconsider record chunking across multiple slurps if real corpora regularly produce oversized cards (current default: reject; arbor structure handles fragmentation upstream)
+- ~~Write atomicity and transaction grain~~ — ruled 2026-08-01 (philetus): hold off until the next iteration. Phase 2 does the simplest thing (plain writes, autocommit); transactions and atomicity are a stated future goal, not a current requirement.
+- Whether oversized-value rejection ever relaxes toward chunking if real corpora produce oversized cards (spec stance: reject; the arbor fragments upstream).
