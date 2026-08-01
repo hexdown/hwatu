@@ -9,6 +9,9 @@ dependencies = []
 [project.urls]
 Source = "https://github.com/hexdown/hwatu"
 
+[project.scripts]
+hwatu = "hwatu.cli:main"
+
 [project.optional-dependencies]
 dev = ["pytest>=9.0.3", "ruff>=0.15.13", "ty>=0.0.37"]
 

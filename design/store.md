@@ -68,8 +68,10 @@ Seeding is byte-reproducible — fixed founding second, deterministic blooms —
 
 ## CLI
 
-- `hwatu inspect <table> <key>` — one record, decoded: octal sips, the glyph stream, and the schema-aware view (rings as `(document, step)` pairs, names as words). The inspector is the canonical human rendering; the stored bytes are the truth.
+- `hwatu inspect <table> <key>` — one record, three ways: the glyph stream, the octal sips, and the schema-aware tree (rings as `(trunk, step)` pairs, names as words, the record's schema resolved from the store's own faces table by bloom; schema cards summarize under the metaschema). The inspector is the canonical human rendering; the stored bytes are the truth.
 - `hwatu list [--plot <name>]` — plots and their documents, from the projections of an opened store.
+
+Both commands take `--store <path>` (default `./store`) and sniff the engine from the path: a directory is a FileStore, a file is a SqliteStore. The `hwatu` command itself is a `[project.scripts]` entry point — `.venv/bin/hwatu` after an editable install.
 
 ## Migration to a key-value substrate
 
