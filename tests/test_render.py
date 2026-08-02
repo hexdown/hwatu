@@ -4,8 +4,7 @@ trees built through the passage schema (schema-resolved builders: the
 tests hold no kind values at all), rendered back to the printed page.
 """
 
-import pytest
-from mary_frances import PASSAGE
+from mary_frances import BANNER, PASSAGE
 
 from hwatu import sips
 from hwatu.layouts import word
@@ -154,12 +153,26 @@ def test_unknown_kinds_degrade_gracefully():
     assert render(mystery, PASSAGE) == "still legible"
 
 
-def test_embedded_quoths_are_the_next_increment():
-    embedded = n(
-        "statement",
-        ph(w("i"), w("was"), w("listening")),
-        n("quoth", ph(w("acknowledged"), p("feather"), p("flop"))),
-        ph(w("and"), w("i"), w("don't"), w("approve")),
+def test_a_title_derives_its_case_with_minor_words():
+    # ch47's heading shape: interior minor words stay low, the rest rise
+    banner_values = BANNER.values()
+    title = Stem(
+        banner_values["title"],
+        (w("have"), w("a"), w("seat"), w("on"), w("a"), w("toad"), w("stool")),
     )
-    with pytest.raises(NotImplementedError):
-        render(embedded, PASSAGE)
+    assert render(title, BANNER) == "Have a Seat on a Toad Stool"
+
+
+def test_an_embedded_quoth_cuts_the_run():
+    embedded = n(
+        "turn",
+        n(
+            "statement",
+            ph(p("i"), w("was"), w("listening")),
+            n("quoth", ph(w("acknowledged"), p("feather"), p("flop"))),
+            ph(w("and"), p("i"), w("don't"), w("approve")),
+        ),
+    )
+    assert render(embedded, PASSAGE) == (
+        "“I was listening,” acknowledged Feather Flop, “and I don’t approve.”"
+    )

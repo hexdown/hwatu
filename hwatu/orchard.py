@@ -21,10 +21,10 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 
 from hwatu import deltas, layouts, sips, slurp
-from hwatu.codec import parse_face
+from hwatu.codec import encode_face, parse_face
 from hwatu.layouts import Ring
 from hwatu.nodes import Blossom, Face, Node, Pad, Stem
-from hwatu.store import Store, key_ring
+from hwatu.store import Store, bloom_key, key_ring, ring_key
 
 
 @dataclass(frozen=True)
@@ -48,6 +48,20 @@ class Orchard:
     next_step: dict[int, int] = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class Seedling:
+    """a tree of faces ready to plant: sow takes the whole seedling.
+
+    kids follow the face's graft order. the minimal seedling is a
+    taproot grafting one leaf -- a document cannot be born bare --
+    and a bulk import is the same shape grown large: one vocabulary,
+    two tempos.
+    """
+
+    face: Face
+    kids: tuple[Seedling, ...] = ()
+
+
 def open(backing: Store) -> Orchard:
     """read + parse + replay: the orchard a store holds.
 
@@ -62,6 +76,59 @@ def open(backing: Store) -> Orchard:
 def _log(backing: Store, table: str) -> Iterator[tuple[Ring, Face]]:
     for key, value in backing.scan(table):
         yield key_ring(key), parse_face(slurp.unpack(value))
+
+
+def sow(
+    backing: Store,
+    grove: Orchard,
+    plot: Ring,
+    seedling: Seedling,
+    stamp: int,
+) -> Ring:
+    """plant a document whole; returns the taproot's stead ring.
+
+    stead rings mint in preorder from the next trunk; every face
+    seals into the faces table; one sow record and a shoot per
+    descendant land in the flushes log, counters ascending within
+    the given stamp second (the clock is the caller's -- injected,
+    never read). each record also applies to the orchard through the
+    same act handlers replay uses, so the grove in hand equals a
+    fresh open of the store.
+    """
+    trunk = grove.next_document
+    counter = 0
+    entries: list[tuple[Ring, Seedling, tuple[Ring, ...]]] = []
+
+    def assign(node: Seedling) -> Ring:
+        nonlocal counter
+        ring = (trunk, counter)
+        counter += 1
+        slot = len(entries)
+        entries.append((ring, node, ()))
+        kid_rings = tuple(assign(kid) for kid in node.kids)
+        entries[slot] = (ring, node, kid_rings)
+        return ring
+
+    taproot = assign(seedling)
+    seeded: dict[tuple[int, ...], bytes] = {}
+    for index, (ring, node, kid_rings) in enumerate(entries):
+        data = slurp.seal(encode_face(node.face))
+        bloom = slurp.bloom_of(data)
+        backing.put("faces", bloom_key(bloom), data)
+        seeded[bloom] = data
+        if index == 0:
+            record = deltas.sow(ring, plot, bloom, kid_rings)
+        else:
+            record = deltas.shoot(ring, bloom, kid_rings)
+        backing.put(
+            "flushes",
+            ring_key((stamp, index)),
+            slurp.seal(encode_face(record)),
+        )
+        act = record.root.kids[1]
+        assert isinstance(act, Stem)
+        _flush(grove, act, "sow" if index == 0 else "shoot", seeded)
+    return taproot
 
 
 def replay(
